@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22522" systemVersion="22G513" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
+    <entity name="MedicalConditionEntity" representedClassName="MedicalConditionEntity" syncable="YES">
+        <attribute name="category" attributeType="String"/>
+        <attribute name="conditionDescription" optional="YES" attributeType="String"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="demographics" optional="YES" attributeType="String"/>
+        <attribute name="descriptionPortuguese" optional="YES" attributeType="String"/>
+        <attribute name="icdCode" optional="YES" attributeType="String"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="labResults" optional="YES" attributeType="String"/>
+        <attribute name="name" attributeType="String"/>
+        <attribute name="namePortuguese" attributeType="String"/>
+        <attribute name="physicalFindings" optional="YES" attributeType="String"/>
+        <attribute name="prevalence" optional="YES" attributeType="String"/>
+        <attribute name="prognosis" optional="YES" attributeType="String"/>
+        <attribute name="riskFactors" optional="YES" attributeType="String"/>
+        <attribute name="severity" attributeType="String"/>
+        <attribute name="symptoms" optional="YES" attributeType="String"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+    </entity>
+</model>

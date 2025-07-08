@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22522" systemVersion="22G513" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
+    <entity name="DemographicsEntity" representedClassName="DemographicsEntity" syncable="YES" codeGenerationType="category">
+        <attribute name="genderPreference" optional="YES" attributeType="String"/>
+        <attribute name="geographicFactors" optional="YES" attributeType="String"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="riskGroups" optional="YES" attributeType="String"/>
+        <attribute name="typicalAge" optional="YES" attributeType="String"/>
+        <relationship name="condition" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="MedicalConditionEntity" inverseName="demographics" inverseEntity="MedicalConditionEntity"/>
+    </entity>
+    <entity name="LabResultEntity" representedClassName="LabResultEntity" syncable="YES" codeGenerationType="category">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="normalRange" optional="YES" attributeType="String"/>
+        <attribute name="significance" optional="YES" attributeType="String"/>
+        <attribute name="significancePortuguese" optional="YES" attributeType="String"/>
+        <attribute name="testName" attributeType="String"/>
+        <attribute name="testNamePortuguese" attributeType="String"/>
+        <attribute name="typicalValue" optional="YES" attributeType="String"/>
+        <attribute name="units" optional="YES" attributeType="String"/>
+        <relationship name="condition" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="MedicalConditionEntity" inverseName="labResults" inverseEntity="MedicalConditionEntity"/>
+    </entity>
+    <entity name="MedicalConditionEntity" representedClassName="MedicalConditionEntity" syncable="YES" codeGenerationType="category">
+        <attribute name="category" attributeType="String"/>
+        <attribute name="conditionDescription" optional="YES" attributeType="String"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="descriptionPortuguese" optional="YES" attributeType="String"/>
+        <attribute name="differentialDiagnoses" optional="YES" attributeType="String"/>
+        <attribute name="icdCode" optional="YES" attributeType="String"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="name" attributeType="String"/>
+        <attribute name="namePortuguese" optional="YES" attributeType="String"/>
+        <attribute name="riskFactors" optional="YES" attributeType="String"/>
+        <attribute name="severity" attributeType="String"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="demographics" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="DemographicsEntity" inverseName="condition" inverseEntity="DemographicsEntity"/>
+        <relationship name="labResults" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="LabResultEntity" inverseName="condition" inverseEntity="LabResultEntity"/>
+        <relationship name="physicalFindings" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="PhysicalFindingEntity" inverseName="condition" inverseEntity="PhysicalFindingEntity"/>
+        <relationship name="symptoms" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="SymptomEntity" inverseName="condition" inverseEntity="SymptomEntity"/>
+    </entity>
+    <entity name="PhysicalFindingEntity" representedClassName="PhysicalFindingEntity" syncable="YES" codeGenerationType="category">
+        <attribute name="descriptionPortuguese" optional="YES" attributeType="String"/>
+        <attribute name="examinationType" attributeType="String"/>
+        <attribute name="finding" attributeType="String"/>
+        <attribute name="findingDescription" optional="YES" attributeType="String"/>
+        <attribute name="findingPortuguese" attributeType="String"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="sensitivity" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="specificity" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <relationship name="condition" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="MedicalConditionEntity" inverseName="physicalFindings" inverseEntity="MedicalConditionEntity"/>
+    </entity>
+    <entity name="SymptomEntity" representedClassName="SymptomEntity" syncable="YES" codeGenerationType="category">
+        <attribute name="bodySystem" attributeType="String"/>
+        <attribute name="descriptionPortuguese" optional="YES" attributeType="String"/>
+        <attribute name="frequency" attributeType="String"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="name" attributeType="String"/>
+        <attribute name="namePortuguese" attributeType="String"/>
+        <attribute name="severity" attributeType="String"/>
+        <attribute name="symptomDescription" optional="YES" attributeType="String"/>
+        <attribute name="typicalPresentation" optional="YES" attributeType="String"/>
+        <attribute name="typicalPresentationPortuguese" optional="YES" attributeType="String"/>
+        <relationship name="condition" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="MedicalConditionEntity" inverseName="symptoms" inverseEntity="MedicalConditionEntity"/>
+    </entity>
+</model>

@@ -1,0 +1,28 @@
+# API Keys and Secrets
+config/.env
+*.env
+.env.local
+
+# Xcode
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+build/
+*.xcuserstate
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+
+# Output files
+output/
+*.sqlite
+*.db
+
+# Large PDFs
+pdfs/*.pdf
+
+# macOS
+.DS_Store
