@@ -8,12 +8,14 @@ config/.env
 *.xcworkspace/xcuserdata/
 DerivedData/
 build/
-*.xcuserstate
 
 # Python
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+.Python
+env/
 venv/
 
 # Output files
@@ -21,7 +23,7 @@ output/
 *.sqlite
 *.db
 
-# Large PDFs
+# PDFs (if large)
 pdfs/*.pdf
 
 # macOS

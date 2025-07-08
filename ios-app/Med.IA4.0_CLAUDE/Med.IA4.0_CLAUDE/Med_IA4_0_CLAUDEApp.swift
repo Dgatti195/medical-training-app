@@ -125,7 +125,7 @@ struct PatientDemographics {
         
         return String(format: "%d'%d\" (%d cm)", feet, inches, heightCm)
     }
-
+    
     private static func generateRandomWeight() -> String {
         let weightKg = Int.random(in: 45...120)
         let weightInKg = Double(weightKg)
@@ -141,8 +141,7 @@ class DatabaseManager: ObservableObject {
     
     init() {
         openDatabase()
-        createTables()
-        clearAndReinsertData()
+        // Don't create tables or insert sample data - use existing database
     }
     
     deinit {
@@ -152,27 +151,62 @@ class DatabaseManager: ObservableObject {
     }
     
     private func openDatabase() {
+        // First try to copy database from bundle to documents directory
+        copyDatabaseIfNeeded()
+        
         let fileURL = try! FileManager.default
             .url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
-            .appendingPathComponent("medical_database.sqlite")
+            .appendingPathComponent("medical_conditions.sqlite")
         
         if sqlite3_open(fileURL.path, &db) == SQLITE_OK {
             print("Successfully opened connection to database at \(fileURL.path)")
         } else {
-            print("Unable to open database")
+            print("Unable to open database - creating fallback")
+            createFallbackDatabase()
+        }
+    }
+    
+    private func copyDatabaseIfNeeded() {
+        let fileManager = FileManager.default
+        let documentsURL = try! fileManager.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
+        let destinationURL = documentsURL.appendingPathComponent("medical_conditions.sqlite")
+        
+        // Check if database already exists
+        if !fileManager.fileExists(atPath: destinationURL.path) {
+            // Try to copy from bundle
+            if let bundlePath = Bundle.main.path(forResource: "medical_conditions", ofType: "sqlite") {
+                let bundleURL = URL(fileURLWithPath: bundlePath)
+                
+                do {
+                    try fileManager.copyItem(at: bundleURL, to: destinationURL)
+                    print("✅ Database copied from bundle to documents directory")
+                } catch {
+                    print("❌ Error copying database: \(error)")
+                    print("Will create fallback database with sample data")
+                }
+            } else {
+                print("❌ Database file not found in bundle - will create fallback")
+            }
+        } else {
+            print("✅ Database already exists in documents directory")
+        }
+    }
+    
+    private func createFallbackDatabase() {
+        let fileURL = try! FileManager.default
+            .url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
+            .appendingPathComponent("medical_conditions.sqlite")
+        
+        if sqlite3_open(fileURL.path, &db) == SQLITE_OK {
+            print("Creating fallback database with sample data")
+            createTables()
+            insertSampleData()
         }
     }
     
     private func createTables() {
-        createDiseasesTable()
-        createSymptomsTable()
-        createPhysicalFindingsTable()
-        createLabResultsTable()
-        createDiagnosticHintsTable()
-    }
-    
-    private func createDiseasesTable() {
-        let createSQL = """
+        // Create diseases table
+        let createDiseasesSQL = """
         CREATE TABLE IF NOT EXISTS diseases (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name_english TEXT NOT NULL,
@@ -185,13 +219,8 @@ class DatabaseManager: ObservableObject {
         );
         """
         
-        if sqlite3_exec(db, createSQL, nil, nil, nil) != SQLITE_OK {
-            print("Error creating diseases table")
-        }
-    }
-    
-    private func createSymptomsTable() {
-        let createSQL = """
+        // Create symptoms table
+        let createSymptomsSQL = """
         CREATE TABLE IF NOT EXISTS symptoms (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             disease_id INTEGER,
@@ -202,13 +231,8 @@ class DatabaseManager: ObservableObject {
         );
         """
         
-        if sqlite3_exec(db, createSQL, nil, nil, nil) != SQLITE_OK {
-            print("Error creating symptoms table")
-        }
-    }
-    
-    private func createPhysicalFindingsTable() {
-        let createSQL = """
+        // Create other tables
+        let createPhysicalFindingsSQL = """
         CREATE TABLE IF NOT EXISTS physical_findings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             disease_id INTEGER,
@@ -218,13 +242,7 @@ class DatabaseManager: ObservableObject {
         );
         """
         
-        if sqlite3_exec(db, createSQL, nil, nil, nil) != SQLITE_OK {
-            print("Error creating physical_findings table")
-        }
-    }
-    
-    private func createLabResultsTable() {
-        let createSQL = """
+        let createLabResultsSQL = """
         CREATE TABLE IF NOT EXISTS lab_results (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             disease_id INTEGER,
@@ -234,13 +252,7 @@ class DatabaseManager: ObservableObject {
         );
         """
         
-        if sqlite3_exec(db, createSQL, nil, nil, nil) != SQLITE_OK {
-            print("Error creating lab_results table")
-        }
-    }
-    
-    private func createDiagnosticHintsTable() {
-        let createSQL = """
+        let createHintsSQL = """
         CREATE TABLE IF NOT EXISTS diagnostic_hints (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             disease_id INTEGER,
@@ -250,202 +262,49 @@ class DatabaseManager: ObservableObject {
         );
         """
         
-        if sqlite3_exec(db, createSQL, nil, nil, nil) != SQLITE_OK {
+        // Execute table creation
+        if sqlite3_exec(db, createDiseasesSQL, nil, nil, nil) != SQLITE_OK {
+            print("Error creating diseases table")
+        }
+        if sqlite3_exec(db, createSymptomsSQL, nil, nil, nil) != SQLITE_OK {
+            print("Error creating symptoms table")
+        }
+        if sqlite3_exec(db, createPhysicalFindingsSQL, nil, nil, nil) != SQLITE_OK {
+            print("Error creating physical_findings table")
+        }
+        if sqlite3_exec(db, createLabResultsSQL, nil, nil, nil) != SQLITE_OK {
+            print("Error creating lab_results table")
+        }
+        if sqlite3_exec(db, createHintsSQL, nil, nil, nil) != SQLITE_OK {
             print("Error creating diagnostic_hints table")
         }
     }
     
-    private func clearAndReinsertData() {
-        print("Clearing existing data and reinserting...")
-        
-        // Clear all existing data
-        sqlite3_exec(db, "DELETE FROM diagnostic_hints;", nil, nil, nil)
-        sqlite3_exec(db, "DELETE FROM lab_results;", nil, nil, nil)
-        sqlite3_exec(db, "DELETE FROM physical_findings;", nil, nil, nil)
-        sqlite3_exec(db, "DELETE FROM symptoms;", nil, nil, nil)
-        sqlite3_exec(db, "DELETE FROM diseases;", nil, nil, nil)
-        
-        // Reset auto-increment counters
-        sqlite3_exec(db, "DELETE FROM sqlite_sequence WHERE name='diseases';", nil, nil, nil)
-        sqlite3_exec(db, "DELETE FROM sqlite_sequence WHERE name='symptoms';", nil, nil, nil)
-        sqlite3_exec(db, "DELETE FROM sqlite_sequence WHERE name='physical_findings';", nil, nil, nil)
-        sqlite3_exec(db, "DELETE FROM sqlite_sequence WHERE name='lab_results';", nil, nil, nil)
-        sqlite3_exec(db, "DELETE FROM sqlite_sequence WHERE name='diagnostic_hints';", nil, nil, nil)
-        
-        // Insert fresh data
-        insertSampleData()
-    }
-    
-    // MARK: - Data Insertion
     private func insertSampleData() {
         print("Inserting sample medical data...")
-        insertAppendicitisData()
-        insertMigraineData()
-        insertPneumoniaData()
-        insertMIData()
-        insertDiabetesData()
-        print("Sample data insertion completed")
+        
+        // Insert sample diseases with proper data
+        let sampleDiseases = [
+            ("Acute Appendicitis", "Apendicite Aguda", "Gastrointestinal", "Urgent"),
+            ("Migraine Headache", "Enxaqueca", "Neurological", "Moderate"),
+            ("Community-Acquired Pneumonia", "Pneumonia Adquirida na Comunidade", "Respiratory", "Moderate to Severe")
+        ]
+        
+        for (index, disease) in sampleDiseases.enumerated() {
+            let diseaseId = insertSampleDisease(
+                nameEnglish: disease.0,
+                namePortuguese: disease.1,
+                category: disease.2,
+                severity: disease.3
+            )
+            
+            if diseaseId > 0 {
+                insertSampleDataForDisease(diseaseId: diseaseId, diseaseIndex: index)
+            }
+        }
     }
     
-    private func insertAppendicitisData() {
-        let diseaseId = insertDisease(
-            nameEnglish: "Acute Appendicitis",
-            namePortuguese: "Apendicite Aguda",
-            category: "Gastrointestinal",
-            severity: "Urgent",
-            descriptionEnglish: "Inflammation of the appendix requiring urgent surgical intervention. Pain typically starts around the navel and moves to the right lower abdomen.",
-            descriptionPortuguese: "Inflamação do apêndice que requer intervenção cirúrgica urgente. A dor geralmente começa ao redor do umbigo e se move para o abdômen inferior direito."
-        )
-        
-        // Symptoms
-        insertSymptom(diseaseId: diseaseId, english: "Right lower quadrant pain", portuguese: "Dor no quadrante inferior direito", isChief: true)
-        insertSymptom(diseaseId: diseaseId, english: "Nausea", portuguese: "Náusea", isChief: true)
-        insertSymptom(diseaseId: diseaseId, english: "Vomiting", portuguese: "Vômito", isChief: false)
-        insertSymptom(diseaseId: diseaseId, english: "Low-grade fever", portuguese: "Febre baixa", isChief: false)
-        insertSymptom(diseaseId: diseaseId, english: "Loss of appetite", portuguese: "Perda de apetite", isChief: false)
-        
-        // Physical Findings
-        insertPhysicalFinding(diseaseId: diseaseId, english: "McBurney's point tenderness", portuguese: "Sensibilidade no ponto de McBurney")
-        insertPhysicalFinding(diseaseId: diseaseId, english: "Positive Rovsing's sign", portuguese: "Sinal de Rovsing positivo")
-        insertPhysicalFinding(diseaseId: diseaseId, english: "Guarding in RLQ", portuguese: "Defesa no quadrante inferior direito")
-        
-        // Lab Results
-        insertLabResult(diseaseId: diseaseId, english: "Elevated WBC (15,000)", portuguese: "Leucócitos elevados (15.000)")
-        insertLabResult(diseaseId: diseaseId, english: "Elevated CRP", portuguese: "PCR elevada")
-        insertLabResult(diseaseId: diseaseId, english: "CT shows appendiceal inflammation", portuguese: "TC mostra inflamação do apêndice")
-        
-        // Hints
-        insertHint(diseaseId: diseaseId, english: "Ask about pain migration", portuguese: "Pergunte sobre migração da dor")
-        insertHint(diseaseId: diseaseId, english: "Check for rebound tenderness", portuguese: "Verifique sensibilidade de rebote")
-        insertHint(diseaseId: diseaseId, english: "Order CBC and inflammatory markers", portuguese: "Solicite hemograma e marcadores inflamatórios")
-    }
-    
-    private func insertMigraineData() {
-        let diseaseId = insertDisease(
-            nameEnglish: "Migraine Headache",
-            namePortuguese: "Enxaqueca",
-            category: "Neurological",
-            severity: "Moderate",
-            descriptionEnglish: "Recurrent primary headache disorder characterized by severe, throbbing pain, often accompanied by nausea and light sensitivity.",
-            descriptionPortuguese: "Distúrbio de cefaleia primária recorrente caracterizado por dor severa e latejante, frequentemente acompanhada de náusea e sensibilidade à luz."
-        )
-        
-        insertSymptom(diseaseId: diseaseId, english: "Severe unilateral headache", portuguese: "Dor de cabeça unilateral severa", isChief: true)
-        insertSymptom(diseaseId: diseaseId, english: "Nausea", portuguese: "Náusea", isChief: true)
-        insertSymptom(diseaseId: diseaseId, english: "Photophobia", portuguese: "Fotofobia", isChief: false)
-        insertSymptom(diseaseId: diseaseId, english: "Visual aura", portuguese: "Aura visual", isChief: false)
-        insertSymptom(diseaseId: diseaseId, english: "Throbbing pain", portuguese: "Dor latejante", isChief: false)
-        
-        insertPhysicalFinding(diseaseId: diseaseId, english: "Normal neurological exam", portuguese: "Exame neurológico normal")
-        insertPhysicalFinding(diseaseId: diseaseId, english: "Photophobia", portuguese: "Fotofobia")
-        insertPhysicalFinding(diseaseId: diseaseId, english: "No focal deficits", portuguese: "Sem déficits focais")
-        
-        insertLabResult(diseaseId: diseaseId, english: "Normal CBC", portuguese: "Hemograma normal")
-        insertLabResult(diseaseId: diseaseId, english: "Normal CT scan", portuguese: "TC normal")
-        insertLabResult(diseaseId: diseaseId, english: "Normal blood pressure", portuguese: "Pressão arterial normal")
-        
-        insertHint(diseaseId: diseaseId, english: "Ask about triggers", portuguese: "Pergunte sobre gatilhos")
-        insertHint(diseaseId: diseaseId, english: "Inquire about aura symptoms", portuguese: "Questione sobre sintomas de aura")
-        insertHint(diseaseId: diseaseId, english: "Check family history of migraines", portuguese: "Verifique histórico familiar de enxaquecas")
-    }
-    
-    private func insertPneumoniaData() {
-        let diseaseId = insertDisease(
-            nameEnglish: "Community-Acquired Pneumonia",
-            namePortuguese: "Pneumonia Adquirida na Comunidade",
-            category: "Respiratory",
-            severity: "Moderate to Severe",
-            descriptionEnglish: "Acute infection of the lung parenchyma acquired outside the hospital setting, typically caused by bacteria, viruses, or other pathogens.",
-            descriptionPortuguese: "Infecção aguda do parênquima pulmonar adquirida fora do ambiente hospitalar, tipicamente causada por bactérias, vírus ou outros patógenos."
-        )
-        
-        insertSymptom(diseaseId: diseaseId, english: "Productive cough", portuguese: "Tosse produtiva", isChief: true)
-        insertSymptom(diseaseId: diseaseId, english: "Fever", portuguese: "Febre", isChief: true)
-        insertSymptom(diseaseId: diseaseId, english: "Shortness of breath", portuguese: "Falta de ar", isChief: false)
-        insertSymptom(diseaseId: diseaseId, english: "Chest pain", portuguese: "Dor no peito", isChief: false)
-        insertSymptom(diseaseId: diseaseId, english: "Fatigue", portuguese: "Fadiga", isChief: false)
-        
-        insertPhysicalFinding(diseaseId: diseaseId, english: "Crackles on auscultation", portuguese: "Crepitações à ausculta")
-        insertPhysicalFinding(diseaseId: diseaseId, english: "Dullness to percussion", portuguese: "Macicez à percussão")
-        insertPhysicalFinding(diseaseId: diseaseId, english: "Increased tactile fremitus", portuguese: "Frêmito tátil aumentado")
-        
-        insertLabResult(diseaseId: diseaseId, english: "Elevated WBC (18,000)", portuguese: "Leucócitos elevados (18.000)")
-        insertLabResult(diseaseId: diseaseId, english: "Chest X-ray shows consolidation", portuguese: "Raio-X do tórax mostra consolidação")
-        insertLabResult(diseaseId: diseaseId, english: "Elevated procalcitonin", portuguese: "Procalcitonina elevada")
-        
-        insertHint(diseaseId: diseaseId, english: "Listen to lung sounds", portuguese: "Ausculte os pulmões")
-        insertHint(diseaseId: diseaseId, english: "Order chest imaging", portuguese: "Solicite imagem do tórax")
-        insertHint(diseaseId: diseaseId, english: "Check oxygen saturation", portuguese: "Verifique saturação de oxigênio")
-    }
-    
-    private func insertMIData() {
-        let diseaseId = insertDisease(
-            nameEnglish: "Acute Myocardial Infarction",
-            namePortuguese: "Infarto Agudo do Miocárdio",
-            category: "Cardiovascular",
-            severity: "Critical",
-            descriptionEnglish: "Acute coronary syndrome resulting from blockage of coronary arteries, causing death of heart muscle tissue. Requires immediate medical intervention.",
-            descriptionPortuguese: "Síndrome coronariana aguda resultante do bloqueio das artérias coronárias, causando morte do tecido muscular cardíaco. Requer intervenção médica imediata."
-        )
-        
-        insertSymptom(diseaseId: diseaseId, english: "Crushing chest pain", portuguese: "Dor torácica esmagadora", isChief: true)
-        insertSymptom(diseaseId: diseaseId, english: "Shortness of breath", portuguese: "Falta de ar", isChief: true)
-        insertSymptom(diseaseId: diseaseId, english: "Diaphoresis", portuguese: "Diaforese", isChief: false)
-        insertSymptom(diseaseId: diseaseId, english: "Left arm pain", portuguese: "Dor no braço esquerdo", isChief: false)
-        insertSymptom(diseaseId: diseaseId, english: "Jaw pain", portuguese: "Dor na mandíbula", isChief: false)
-        
-        insertPhysicalFinding(diseaseId: diseaseId, english: "Diaphoresis", portuguese: "Diaforese")
-        insertPhysicalFinding(diseaseId: diseaseId, english: "S4 gallop", portuguese: "Galope S4")
-        insertPhysicalFinding(diseaseId: diseaseId, english: "Possible murmur", portuguese: "Possível sopro")
-        insertPhysicalFinding(diseaseId: diseaseId, english: "Elevated JVP", portuguese: "PVJ elevada")
-        
-        insertLabResult(diseaseId: diseaseId, english: "Elevated troponin", portuguese: "Troponina elevada")
-        insertLabResult(diseaseId: diseaseId, english: "Elevated CK-MB", portuguese: "CK-MB elevada")
-        insertLabResult(diseaseId: diseaseId, english: "ECG shows ST elevation", portuguese: "ECG mostra elevação ST")
-        insertLabResult(diseaseId: diseaseId, english: "Elevated LDH", portuguese: "LDH elevado")
-        
-        insertHint(diseaseId: diseaseId, english: "Check cardiac enzymes", portuguese: "Verifique enzimas cardíacas")
-        insertHint(diseaseId: diseaseId, english: "Order ECG immediately", portuguese: "Solicite ECG imediatamente")
-        insertHint(diseaseId: diseaseId, english: "Ask about cardiac risk factors", portuguese: "Pergunte sobre fatores de risco cardíaco")
-    }
-    
-    private func insertDiabetesData() {
-        let diseaseId = insertDisease(
-            nameEnglish: "Type 2 Diabetes Mellitus",
-            namePortuguese: "Diabetes Mellitus Tipo 2",
-            category: "Endocrine",
-            severity: "Chronic",
-            descriptionEnglish: "Metabolic disorder characterized by insulin resistance and relative insulin deficiency, leading to elevated blood glucose levels.",
-            descriptionPortuguese: "Distúrbio metabólico caracterizado por resistência à insulina e deficiência relativa de insulina, levando a níveis elevados de glicose no sangue."
-        )
-        
-        insertSymptom(diseaseId: diseaseId, english: "Polyuria", portuguese: "Poliúria", isChief: true)
-        insertSymptom(diseaseId: diseaseId, english: "Polydipsia", portuguese: "Polidipsia", isChief: true)
-        insertSymptom(diseaseId: diseaseId, english: "Fatigue", portuguese: "Fadiga", isChief: false)
-        insertSymptom(diseaseId: diseaseId, english: "Blurred vision", portuguese: "Visão turva", isChief: false)
-        insertSymptom(diseaseId: diseaseId, english: "Slow wound healing", portuguese: "Cicatrização lenta", isChief: false)
-        
-        insertPhysicalFinding(diseaseId: diseaseId, english: "Acanthosis nigricans", portuguese: "Acantose nigricans")
-        insertPhysicalFinding(diseaseId: diseaseId, english: "Obesity", portuguese: "Obesidade")
-        insertPhysicalFinding(diseaseId: diseaseId, english: "Normal neurological exam", portuguese: "Exame neurológico normal")
-        
-        insertLabResult(diseaseId: diseaseId, english: "Fasting glucose 145 mg/dL", portuguese: "Glicemia de jejum 145 mg/dL")
-        insertLabResult(diseaseId: diseaseId, english: "HbA1c 8.2%", portuguese: "HbA1c 8,2%")
-        insertLabResult(diseaseId: diseaseId, english: "Random glucose 210 mg/dL", portuguese: "Glicemia aleatória 210 mg/dL")
-        
-        insertHint(diseaseId: diseaseId, english: "Check blood glucose levels", portuguese: "Verifique níveis de glicose")
-        insertHint(diseaseId: diseaseId, english: "Order HbA1c", portuguese: "Solicite HbA1c")
-        insertHint(diseaseId: diseaseId, english: "Ask about family history of diabetes", portuguese: "Pergunte sobre histórico familiar de diabetes")
-    }
-    
-    // MARK: - Helper Insert Methods
-    private func insertDisease(nameEnglish: String, namePortuguese: String, category: String, severity: String, descriptionEnglish: String, descriptionPortuguese: String) -> Int {
-        
-        print("Attempting to insert:")
-        print("  English: '\(nameEnglish)'")
-        print("  Portuguese: '\(namePortuguese)'")
-        print("  Category: '\(category)'")
-        
+    private func insertSampleDisease(nameEnglish: String, namePortuguese: String, category: String, severity: String) -> Int {
         let insertSQL = """
         INSERT INTO diseases (name_english, name_portuguese, category, severity, description_english, description_portuguese)
         VALUES (?, ?, ?, ?, ?, ?);
@@ -453,28 +312,46 @@ class DatabaseManager: ObservableObject {
         
         var statement: OpaquePointer?
         if sqlite3_prepare_v2(db, insertSQL, -1, &statement, nil) == SQLITE_OK {
-            
             sqlite3_bind_text(statement, 1, nameEnglish, -1, SQLITE_TRANSIENT)
             sqlite3_bind_text(statement, 2, namePortuguese, -1, SQLITE_TRANSIENT)
             sqlite3_bind_text(statement, 3, category, -1, SQLITE_TRANSIENT)
             sqlite3_bind_text(statement, 4, severity, -1, SQLITE_TRANSIENT)
-            sqlite3_bind_text(statement, 5, descriptionEnglish, -1, SQLITE_TRANSIENT)
-            sqlite3_bind_text(statement, 6, descriptionPortuguese, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(statement, 5, "Clinical description for \(nameEnglish)", -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(statement, 6, "Descrição clínica para \(namePortuguese)", -1, SQLITE_TRANSIENT)
             
-            let stepResult = sqlite3_step(statement)
-            if stepResult == SQLITE_DONE {
+            if sqlite3_step(statement) == SQLITE_DONE {
                 let diseaseId = Int(sqlite3_last_insert_rowid(db))
-                print("✅ Successfully inserted disease: '\(nameEnglish)' with ID: \(diseaseId)")
                 sqlite3_finalize(statement)
                 return diseaseId
-            } else {
-                print("❌ Error executing insert (code: \(stepResult)): \(String(cString: sqlite3_errmsg(db)))")
             }
-        } else {
-            print("❌ Error preparing disease insert statement: \(String(cString: sqlite3_errmsg(db)))")
         }
         sqlite3_finalize(statement)
         return -1
+    }
+    
+    private func insertSampleDataForDisease(diseaseId: Int, diseaseIndex: Int) {
+        switch diseaseIndex {
+        case 0: // Appendicitis
+            insertSymptom(diseaseId: diseaseId, english: "Right lower quadrant pain", portuguese: "Dor no quadrante inferior direito", isChief: true)
+            insertSymptom(diseaseId: diseaseId, english: "Nausea", portuguese: "Náusea", isChief: true)
+            insertSymptom(diseaseId: diseaseId, english: "Vomiting", portuguese: "Vômito", isChief: false)
+            insertSymptom(diseaseId: diseaseId, english: "Low-grade fever", portuguese: "Febre baixa", isChief: false)
+            
+        case 1: // Migraine
+            insertSymptom(diseaseId: diseaseId, english: "Severe unilateral headache", portuguese: "Dor de cabeça unilateral severa", isChief: true)
+            insertSymptom(diseaseId: diseaseId, english: "Nausea", portuguese: "Náusea", isChief: true)
+            insertSymptom(diseaseId: diseaseId, english: "Photophobia", portuguese: "Fotofobia", isChief: false)
+            insertSymptom(diseaseId: diseaseId, english: "Visual aura", portuguese: "Aura visual", isChief: false)
+            
+        case 2: // Pneumonia
+            insertSymptom(diseaseId: diseaseId, english: "Productive cough", portuguese: "Tosse produtiva", isChief: true)
+            insertSymptom(diseaseId: diseaseId, english: "Fever", portuguese: "Febre", isChief: true)
+            insertSymptom(diseaseId: diseaseId, english: "Shortness of breath", portuguese: "Falta de ar", isChief: false)
+            insertSymptom(diseaseId: diseaseId, english: "Chest pain", portuguese: "Dor no peito", isChief: false)
+            
+        default:
+            break
+        }
     }
     
     private func insertSymptom(diseaseId: Int, english: String, portuguese: String, isChief: Bool) {
@@ -489,54 +366,6 @@ class DatabaseManager: ObservableObject {
             
             if sqlite3_step(statement) != SQLITE_DONE {
                 print("Error inserting symptom: \(english)")
-            }
-        }
-        sqlite3_finalize(statement)
-    }
-    
-    private func insertPhysicalFinding(diseaseId: Int, english: String, portuguese: String) {
-        let insertSQL = "INSERT INTO physical_findings (disease_id, finding_english, finding_portuguese) VALUES (?, ?, ?);"
-        var statement: OpaquePointer?
-        
-        if sqlite3_prepare_v2(db, insertSQL, -1, &statement, nil) == SQLITE_OK {
-            sqlite3_bind_int(statement, 1, Int32(diseaseId))
-            sqlite3_bind_text(statement, 2, english, -1, SQLITE_TRANSIENT)
-            sqlite3_bind_text(statement, 3, portuguese, -1, SQLITE_TRANSIENT)
-            
-            if sqlite3_step(statement) != SQLITE_DONE {
-                print("Error inserting finding: \(english)")
-            }
-        }
-        sqlite3_finalize(statement)
-    }
-    
-    private func insertLabResult(diseaseId: Int, english: String, portuguese: String) {
-        let insertSQL = "INSERT INTO lab_results (disease_id, result_english, result_portuguese) VALUES (?, ?, ?);"
-        var statement: OpaquePointer?
-        
-        if sqlite3_prepare_v2(db, insertSQL, -1, &statement, nil) == SQLITE_OK {
-            sqlite3_bind_int(statement, 1, Int32(diseaseId))
-            sqlite3_bind_text(statement, 2, english, -1, SQLITE_TRANSIENT)
-            sqlite3_bind_text(statement, 3, portuguese, -1, SQLITE_TRANSIENT)
-            
-            if sqlite3_step(statement) != SQLITE_DONE {
-                print("Error inserting lab result: \(english)")
-            }
-        }
-        sqlite3_finalize(statement)
-    }
-    
-    private func insertHint(diseaseId: Int, english: String, portuguese: String) {
-        let insertSQL = "INSERT INTO diagnostic_hints (disease_id, hint_english, hint_portuguese) VALUES (?, ?, ?);"
-        var statement: OpaquePointer?
-        
-        if sqlite3_prepare_v2(db, insertSQL, -1, &statement, nil) == SQLITE_OK {
-            sqlite3_bind_int(statement, 1, Int32(diseaseId))
-            sqlite3_bind_text(statement, 2, english, -1, SQLITE_TRANSIENT)
-            sqlite3_bind_text(statement, 3, portuguese, -1, SQLITE_TRANSIENT)
-            
-            if sqlite3_step(statement) != SQLITE_DONE {
-                print("Error inserting hint: \(english)")
             }
         }
         sqlite3_finalize(statement)
@@ -727,6 +556,7 @@ class MedicalDatabaseManager: ObservableObject {
     @Published var diseases: [Disease] = []
     @Published var isLoading = false
     @Published var patientCases: [PatientCase] = []
+    @Published var loadingError: String?
     
     private let dbManager = DatabaseManager()
     private var hasLoadedOnce = false
@@ -744,13 +574,56 @@ class MedicalDatabaseManager: ObservableObject {
         print("Starting database load...")
         isLoading = true
         hasLoadedOnce = true
+        loadingError = nil
         
+        // Load diseases from database
         diseases = dbManager.fetchAllDiseases()
-        print("Database load completed with \(diseases.count) diseases")
         
-        generateConsistentPatientCases()
+        if diseases.isEmpty {
+            loadingError = "No diseases found in database"
+            print("❌ No diseases loaded from database")
+        } else {
+            print("✅ Database load completed with \(diseases.count) diseases")
+            generateConsistentPatientCases()
+        }
         
         isLoading = false
+        printLoadedDataSummary()
+    }
+    
+    private func printLoadedDataSummary() {
+        print("\n=== LOADED DATA SUMMARY ===")
+        print("Total diseases: \(diseases.count)")
+        
+        if !diseases.isEmpty {
+            let categoryCounts = Dictionary(grouping: diseases, by: { $0.category })
+                .mapValues { $0.count }
+            
+            print("By category:")
+            for (category, count) in categoryCounts.sorted(by: { $0.key < $1.key }) {
+                print("  \(category): \(count)")
+            }
+            
+            let totalSymptoms = diseases.reduce(0) { $0 + $1.symptoms.count }
+            let totalChiefComplaints = diseases.reduce(0) { $0 + $1.symptoms.filter { $0.isChiefComplaint }.count }
+            let totalPhysicalFindings = diseases.reduce(0) { $0 + $1.physicalFindings.count }
+            let totalLabResults = diseases.reduce(0) { $0 + $1.labResults.count }
+            let totalHints = diseases.reduce(0) { $0 + $1.hints.count }
+            
+            print("Total symptoms: \(totalSymptoms) (\(totalChiefComplaints) chief complaints)")
+            print("Total physical findings: \(totalPhysicalFindings)")
+            print("Total lab results: \(totalLabResults)")
+            print("Total diagnostic hints: \(totalHints)")
+            
+            // Sample disease info
+            if let firstDisease = diseases.first {
+                print("\nSample disease: \(firstDisease.nameEnglish)")
+                print("  Category: \(firstDisease.category)")
+                print("  Symptoms: \(firstDisease.symptoms.count)")
+                print("  Chief complaints: \(firstDisease.symptoms.filter { $0.isChiefComplaint }.count)")
+            }
+        }
+        print("========================\n")
     }
     
     private func generateConsistentPatientCases() {
@@ -758,6 +631,10 @@ class MedicalDatabaseManager: ObservableObject {
             generatePatientCase(from: disease, language: .english)
         }
         print("Generated \(patientCases.count) consistent patient cases")
+        
+        // Verify patient cases have data
+        let casesWithSymptoms = patientCases.filter { !$0.presentingSymptoms.isEmpty }
+        print("Patient cases with symptoms: \(casesWithSymptoms.count)/\(patientCases.count)")
     }
     
     func getPatientCase(for disease: Disease) -> PatientCase? {
@@ -767,17 +644,35 @@ class MedicalDatabaseManager: ObservableObject {
     func generatePatientCase(from disease: Disease, language: AppLanguage) -> PatientCase {
         let demographics = PatientDemographics.generateRandom(language: language)
         
+        // Get chief complaints (prioritize these)
         let chiefComplaints = disease.symptoms
             .filter { $0.isChiefComplaint }
             .shuffled()
-            .prefix(Int.random(in: 2...3))
         
+        // Get additional symptoms
         let additionalSymptoms = disease.symptoms
             .filter { !$0.isChiefComplaint }
             .shuffled()
-            .prefix(Int.random(in: 1...2))
         
-        let presentingSymptoms = Array(chiefComplaints) + Array(additionalSymptoms)
+        // Combine symptoms for presentation
+        var presentingSymptoms: [Symptom] = []
+        
+        // Always include at least 1-2 chief complaints if available
+        if !chiefComplaints.isEmpty {
+            let numberOfChiefComplaints = min(chiefComplaints.count, Int.random(in: 1...2))
+            presentingSymptoms.append(contentsOf: Array(chiefComplaints.prefix(numberOfChiefComplaints)))
+        }
+        
+        // Add some additional symptoms
+        if !additionalSymptoms.isEmpty {
+            let numberOfAdditionalSymptoms = min(additionalSymptoms.count, Int.random(in: 1...3))
+            presentingSymptoms.append(contentsOf: Array(additionalSymptoms.prefix(numberOfAdditionalSymptoms)))
+        }
+        
+        // If no symptoms at all, this indicates a data issue
+        if presentingSymptoms.isEmpty {
+            print("⚠️ Warning: No symptoms found for disease: \(disease.nameEnglish)")
+        }
         
         return PatientCase(
             disease: disease,
@@ -787,6 +682,117 @@ class MedicalDatabaseManager: ObservableObject {
             availableLabResults: disease.labResults,
             availableHints: disease.hints
         )
+    }
+    
+    // MARK: - Data Management Methods
+    
+    func refreshData() {
+        print("Refreshing database data...")
+        hasLoadedOnce = false
+        diseases = []
+        patientCases = []
+        loadingError = nil
+        loadDiseases()
+    }
+    
+    func getDiseasesByCategory(_ category: String) -> [Disease] {
+        return diseases.filter { $0.category == category }
+    }
+    
+    func getAllCategories() -> [String] {
+        let categories = Set(diseases.map { $0.category })
+        return Array(categories).sorted()
+    }
+    
+    func searchDiseases(query: String) -> [Disease] {
+        if query.isEmpty {
+            return diseases
+        }
+        
+        return diseases.filter { disease in
+            disease.nameEnglish.localizedCaseInsensitiveContains(query) ||
+            disease.namePortuguese.localizedCaseInsensitiveContains(query) ||
+            disease.category.localizedCaseInsensitiveContains(query) ||
+            disease.symptoms.contains { symptom in
+                symptom.symptomEnglish.localizedCaseInsensitiveContains(query) ||
+                symptom.symptomPortuguese.localizedCaseInsensitiveContains(query)
+            }
+        }
+    }
+    
+    // MARK: - Debug Methods
+    
+    func debugDatabaseConnection() {
+        print("=== DATABASE DEBUG INFO ===")
+        print("Diseases count: \(diseases.count)")
+        print("Patient cases count: \(patientCases.count)")
+        print("Has loaded once: \(hasLoadedOnce)")
+        print("Is loading: \(isLoading)")
+        print("Loading error: \(loadingError ?? "None")")
+        
+        if let firstDisease = diseases.first {
+            print("\nFirst disease details:")
+            print("  ID: \(firstDisease.id)")
+            print("  English: \(firstDisease.nameEnglish)")
+            print("  Portuguese: \(firstDisease.namePortuguese)")
+            print("  Category: \(firstDisease.category)")
+            print("  Symptoms: \(firstDisease.symptoms.count)")
+            print("  Chief complaints: \(firstDisease.symptoms.filter { $0.isChiefComplaint }.count)")
+            
+            if let patientCase = getPatientCase(for: firstDisease) {
+                print("  Patient case symptoms: \(patientCase.presentingSymptoms.count)")
+                print("  Patient name: \(patientCase.demographics.name)")
+            }
+        }
+        print("===========================")
+    }
+    
+    // MARK: - Validation Methods
+    
+    func validateData() -> [String] {
+        var issues: [String] = []
+        
+        if diseases.isEmpty {
+            issues.append("No diseases loaded from database")
+            return issues
+        }
+        
+        for disease in diseases {
+            // Check for empty names
+            if disease.nameEnglish.isEmpty {
+                issues.append("Disease ID \(disease.id) has empty English name")
+            }
+            if disease.namePortuguese.isEmpty {
+                issues.append("Disease ID \(disease.id) has empty Portuguese name")
+            }
+            
+            // Check for symptoms
+            if disease.symptoms.isEmpty {
+                issues.append("Disease '\(disease.nameEnglish)' has no symptoms")
+            }
+            
+            // Check for chief complaints
+            let chiefComplaints = disease.symptoms.filter { $0.isChiefComplaint }
+            if chiefComplaints.isEmpty {
+                issues.append("Disease '\(disease.nameEnglish)' has no chief complaints")
+            }
+            
+            // Check for empty symptom text
+            for symptom in disease.symptoms {
+                if symptom.symptomEnglish.isEmpty || symptom.symptomPortuguese.isEmpty {
+                    issues.append("Disease '\(disease.nameEnglish)' has symptoms with empty text")
+                    break
+                }
+            }
+        }
+        
+        // Check patient cases
+        let casesWithoutSymptoms = patientCases.filter { $0.presentingSymptoms.isEmpty }
+        if !casesWithoutSymptoms.isEmpty {
+            issues.append("\(casesWithoutSymptoms.count) patient cases have no presenting symptoms")
+        }
+        
+        return issues
     }
 }
 
@@ -1353,6 +1359,34 @@ struct ContentView: View {
                     .padding(.horizontal)
                 }
                 
+                // Debug Info (remove in production)
+                if dataManager.isLoading {
+                    VStack {
+                        ProgressView()
+                        Text("Loading medical database...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                } else if let error = dataManager.loadingError {
+                    VStack {
+                        Text("Database Error")
+                            .font(.headline)
+                            .foregroundColor(.red)
+                        Text(error)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Button("Retry") {
+                            dataManager.refreshData()
+                        }
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                    }
+                    .padding()
+                }
+                
                 // Diseases List
                 List(filteredDiseases) { disease in
                     NavigationLink(destination: PatientSimulationView(disease: disease)
@@ -1361,6 +1395,20 @@ struct ContentView: View {
                             .environmentObject(dataManager)
                     }
                 }
+                
+                // Debug button (remove in production)
+                Button("Debug Database") {
+                    dataManager.debugDatabaseConnection()
+                    let issues = dataManager.validateData()
+                    if !issues.isEmpty {
+                        print("Data issues found:")
+                        issues.forEach { print("  - \($0)") }
+                    }
+                }
+                .padding()
+                .background(Color.orange)
+                .foregroundColor(.white)
+                .cornerRadius(8)
             }
             .navigationTitle(userProfile.currentLanguage == .portuguese ? "Base de Dados Médica" : "Medical Database")
             .navigationBarTitleDisplayMode(.large)
@@ -1411,11 +1459,32 @@ struct PatientRowView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
-                    ForEach(patientCase.presentingSymptoms.filter { $0.isChiefComplaint }, id: \.id) { symptom in
-                        Text("• \(symptom.getText(language))")
+                    let chiefComplaints = patientCase.presentingSymptoms.filter { $0.isChiefComplaint }
+                    
+                    if chiefComplaints.isEmpty {
+                        // Debug: Show that we have no chief complaints
+                        Text("No chief complaints found")
                             .font(.caption)
-                            .foregroundColor(.primary)
+                            .foregroundColor(.red)
+                        
+                        // Fallback: Show any symptoms
+                        ForEach(patientCase.presentingSymptoms.prefix(2), id: \.id) { symptom in
+                            Text("• \(symptom.getText(language)) (Not Chief)")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        }
+                    } else {
+                        ForEach(chiefComplaints, id: \.id) { symptom in
+                            Text("• \(symptom.getText(language))")
+                                .font(.caption)
+                                .foregroundColor(.primary)
+                        }
                     }
+                    
+                    // Debug info
+                    Text("Debug: \(patientCase.presentingSymptoms.count) symptoms, \(chiefComplaints.count) chief")
+                        .font(.caption2)
+                        .foregroundColor(.gray)
                 }
                 
                 HStack {
@@ -1451,12 +1520,151 @@ struct PatientRowView: View {
     }
 }
 
-// MARK: - Patient Simulation View
+// MARK: - User Profile View
+struct UserProfileView: View {
+    @EnvironmentObject var userProfile: UserProfileManager
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Profile Header
+                    VStack(spacing: 16) {
+                        Image(systemName: "person.circle.fill")
+                            .font(.system(size: 80))
+                            .foregroundColor(.blue)
+                        
+                        Text(userProfile.currentLanguage == .portuguese ? "Perfil" : "Profile")
+                            .font(.largeTitle)
+                            .bold()
+                    }
+                    
+                    // Language Settings
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(userProfile.currentLanguage == .portuguese ? "Configurações" : "Settings")
+                            .font(.headline)
+                        
+                        HStack {
+                            Text(userProfile.currentLanguage == .portuguese ? "Idioma:" : "Language:")
+                            Spacer()
+                            Picker("Language", selection: Binding(
+                                get: { userProfile.currentLanguage },
+                                set: { userProfile.changeLanguage($0) }
+                            )) {
+                                ForEach(AppLanguage.allCases, id: \.self) { language in
+                                    Text(language.displayName).tag(language)
+                                }
+                            }
+                            .pickerStyle(SegmentedPickerStyle())
+                        }
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(10)
+                    
+                    // Statistics
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text(userProfile.currentLanguage == .portuguese ? "Estatísticas" : "Statistics")
+                            .font(.headline)
+                        
+                        VStack(spacing: 12) {
+                            StatCard(
+                                title: userProfile.currentLanguage == .portuguese ? "Pacientes Entrevistados" : "Patients Interviewed",
+                                value: "\(userProfile.profile.totalPatientsInterviewed)",
+                                color: .blue
+                            )
+                            
+                            StatCard(
+                                title: userProfile.currentLanguage == .portuguese ? "Diagnósticos Tentados" : "Diagnoses Attempted",
+                                value: "\(userProfile.profile.totalDiagnosesAttempted)",
+                                color: .orange
+                            )
+                            
+                            StatCard(
+                                title: userProfile.currentLanguage == .portuguese ? "Precisão Total" : "Total Accuracy",
+                                value: String(format: "%.1f%%", userProfile.profile.accuracyPercentage),
+                                color: userProfile.profile.accuracyPercentage >= 70 ? .green : .orange
+                            )
+                            
+                            StatCard(
+                                title: userProfile.currentLanguage == .portuguese ? "Dicas Usadas" : "Hints Used",
+                                value: "\(userProfile.profile.hintsUsed)",
+                                color: .yellow
+                            )
+                            
+                            StatCard(
+                                title: userProfile.currentLanguage == .portuguese ? "Exames Solicitados" : "Tests Ordered",
+                                value: "\(userProfile.profile.testsOrdered)",
+                                color: .purple
+                            )
+                            
+                            StatCard(
+                                title: userProfile.currentLanguage == .portuguese ? "Tempo de Estudo" : "Study Time",
+                                value: formatStudyTime(userProfile.profile.studyTime),
+                                color: .green
+                            )
+                        }
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle(userProfile.currentLanguage == .portuguese ? "Perfil" : "Profile")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(userProfile.currentLanguage == .portuguese ? "Concluído" : "Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func formatStudyTime(_ timeInterval: TimeInterval) -> String {
+        let totalSeconds = Int(timeInterval)
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        
+        if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        } else {
+            return "\(minutes)m"
+        }
+    }
+}
+
+// MARK: - Helper Views
+struct StatCard: View {
+    let title: String
+    let value: String
+    let color: Color
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text(value)
+                    .font(.title2)
+                    .bold()
+                    .foregroundColor(color)
+            }
+            Spacer()
+        }
+        .padding()
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(10)
+    }
+}
+
+// MARK: - Patient Simulation View (Complete with all features)
 struct PatientSimulationView: View {
     let disease: Disease
     @EnvironmentObject var userProfile: UserProfileManager
     @EnvironmentObject var dataManager: MedicalDatabaseManager
-    @StateObject private var aiService = ClaudeAIService(apiKey: "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")
+    @StateObject private var aiService = ClaudeAIService(apiKey: "API_KEY_PLACEHOLDER")
     
     @State private var currentQuestion = ""
     @State private var conversationHistory: [ConversationTurn] = []
@@ -1492,13 +1700,24 @@ struct PatientSimulationView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
-                        ForEach(patient.presentingSymptoms.filter { $0.isChiefComplaint }, id: \.id) { symptom in
-                            Text("• \(symptom.getText(userProfile.currentLanguage))")
+                        let chiefComplaints = patient.presentingSymptoms.filter { $0.isChiefComplaint }
+                        
+                        if chiefComplaints.isEmpty {
+                            Text("Symptoms being evaluated...")
                                 .font(.subheadline)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 4)
                                 .background(Color.orange.opacity(0.2))
                                 .cornerRadius(8)
+                        } else {
+                            ForEach(chiefComplaints, id: \.id) { symptom in
+                                Text("• \(symptom.getText(userProfile.currentLanguage))")
+                                    .font(.subheadline)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 4)
+                                    .background(Color.orange.opacity(0.2))
+                                    .cornerRadius(8)
+                            }
                         }
                     }
                 }
@@ -2193,144 +2412,5 @@ struct StudyMaterialsView: View {
                 }
             }
         }
-    }
-}
-
-// MARK: - User Profile View
-struct UserProfileView: View {
-    @EnvironmentObject var userProfile: UserProfileManager
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Profile Header
-                    VStack(spacing: 16) {
-                        Image(systemName: "person.circle.fill")
-                            .font(.system(size: 80))
-                            .foregroundColor(.blue)
-                        
-                        Text(userProfile.currentLanguage == .portuguese ? "Perfil" : "Profile")
-                            .font(.largeTitle)
-                            .bold()
-                    }
-                    
-                    // Language Settings
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(userProfile.currentLanguage == .portuguese ? "Configurações" : "Settings")
-                            .font(.headline)
-                        
-                        HStack {
-                            Text(userProfile.currentLanguage == .portuguese ? "Idioma:" : "Language:")
-                            Spacer()
-                            Picker("Language", selection: Binding(
-                                get: { userProfile.currentLanguage },
-                                set: { userProfile.changeLanguage($0) }
-                            )) {
-                                ForEach(AppLanguage.allCases, id: \.self) { language in
-                                    Text(language.displayName).tag(language)
-                                }
-                            }
-                            .pickerStyle(SegmentedPickerStyle())
-                        }
-                    }
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(10)
-                    
-                    // Statistics
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text(userProfile.currentLanguage == .portuguese ? "Estatísticas" : "Statistics")
-                            .font(.headline)
-                        
-                        VStack(spacing: 12) {
-                            StatCard(
-                                title: userProfile.currentLanguage == .portuguese ? "Pacientes Entrevistados" : "Patients Interviewed",
-                                value: "\(userProfile.profile.totalPatientsInterviewed)",
-                                color: .blue
-                            )
-                            
-                            StatCard(
-                                title: userProfile.currentLanguage == .portuguese ? "Diagnósticos Tentados" : "Diagnoses Attempted",
-                                value: "\(userProfile.profile.totalDiagnosesAttempted)",
-                                color: .orange
-                            )
-                            
-                            StatCard(
-                                title: userProfile.currentLanguage == .portuguese ? "Precisão Total" : "Total Accuracy",
-                                value: String(format: "%.1f%%", userProfile.profile.accuracyPercentage),
-                                color: userProfile.profile.accuracyPercentage >= 70 ? .green : .orange
-                            )
-                            
-                            StatCard(
-                                title: userProfile.currentLanguage == .portuguese ? "Dicas Usadas" : "Hints Used",
-                                value: "\(userProfile.profile.hintsUsed)",
-                                color: .yellow
-                            )
-                            
-                            StatCard(
-                                title: userProfile.currentLanguage == .portuguese ? "Exames Solicitados" : "Tests Ordered",
-                                value: "\(userProfile.profile.testsOrdered)",
-                                color: .purple
-                            )
-                            
-                            StatCard(
-                                title: userProfile.currentLanguage == .portuguese ? "Tempo de Estudo" : "Study Time",
-                                value: formatStudyTime(userProfile.profile.studyTime),
-                                color: .green
-                            )
-                        }
-                    }
-                }
-                .padding()
-            }
-            .navigationTitle(userProfile.currentLanguage == .portuguese ? "Perfil" : "Profile")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(userProfile.currentLanguage == .portuguese ? "Concluído" : "Done") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-    
-    private func formatStudyTime(_ timeInterval: TimeInterval) -> String {
-        let totalSeconds = Int(timeInterval)
-        let hours = totalSeconds / 3600
-        let minutes = (totalSeconds % 3600) / 60
-        
-        if hours > 0 {
-            return "\(hours)h \(minutes)m"
-        } else {
-            return "\(minutes)m"
-        }
-    }
-}
-
-// MARK: - Helper Views
-struct StatCard: View {
-    let title: String
-    let value: String
-    let color: Color
-    
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text(value)
-                    .font(.title2)
-                    .bold()
-                    .foregroundColor(color)
-            }
-            Spacer()
-        }
-        .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(10)
     }
 }

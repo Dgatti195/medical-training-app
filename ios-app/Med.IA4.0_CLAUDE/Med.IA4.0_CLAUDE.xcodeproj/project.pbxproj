@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		BF9C39AB2E19174E0095DAE1 /* MedicalDatabase.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = BF9C39A92E19174E0095DAE1 /* MedicalDatabase.xcdatamodeld */; };
+		BF9C39AD2E1DC4BA0095DAE1 /* medical_conditions.sqlite in Resources */ = {isa = PBXBuildFile; fileRef = BF9C39AC2E1DC4BA0095DAE1 /* medical_conditions.sqlite */; };
 		BFF701502DF7906D00E81383 /* Med_IA4_0_CLAUDEApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFF7014F2DF7906D00E81383 /* Med_IA4_0_CLAUDEApp.swift */; };
 		BFF701542DF7906F00E81383 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BFF701532DF7906F00E81383 /* Assets.xcassets */; };
 		BFF701572DF7906F00E81383 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BFF701562DF7906F00E81383 /* Preview Assets.xcassets */; };
@@ -35,6 +36,7 @@
 
 /* Begin PBXFileReference section */
 		BF9C39AA2E19174E0095DAE1 /* MedicalDatabase.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = MedicalDatabase.xcdatamodel; sourceTree = "<group>"; };
+		BF9C39AC2E1DC4BA0095DAE1 /* medical_conditions.sqlite */ = {isa = PBXFileReference; lastKnownFileType = file; path = medical_conditions.sqlite; sourceTree = "<group>"; };
 		BFF7014C2DF7906D00E81383 /* Med.IA4.0_CLAUDE.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Med.IA4.0_CLAUDE.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BFF7014F2DF7906D00E81383 /* Med_IA4_0_CLAUDEApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Med_IA4_0_CLAUDEApp.swift; sourceTree = "<group>"; };
 		BFF701532DF7906F00E81383 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -74,6 +76,7 @@
 		BFF701432DF7906D00E81383 = {
 			isa = PBXGroup;
 			children = (
+				BF9C39AC2E1DC4BA0095DAE1 /* medical_conditions.sqlite */,
 				BFF7014E2DF7906D00E81383 /* Med.IA4.0_CLAUDE */,
 				BFF7015F2DF7906F00E81383 /* Med.IA4.0_CLAUDETests */,
 				BFF701692DF7906F00E81383 /* Med.IA4.0_CLAUDEUITests */,
@@ -233,6 +236,7 @@
 			files = (
 				BFF701572DF7906F00E81383 /* Preview Assets.xcassets in Resources */,
 				BFF701542DF7906F00E81383 /* Assets.xcassets in Resources */,
+				BF9C39AD2E1DC4BA0095DAE1 /* medical_conditions.sqlite in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

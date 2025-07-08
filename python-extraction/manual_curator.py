@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 # manual_curator.py - Manual review tools for extracted medical data
 

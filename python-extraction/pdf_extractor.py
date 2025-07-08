@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # pdf_extractor.py - Full AI-Powered Medical PDF Extraction Tool
-
 import json
 import re
 import os
@@ -32,9 +31,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class MedicalCondition:
-    def __init__(self, name_english="", name_portuguese="", category="", severity="", 
-                 description_english="", description_portuguese="", symptoms=None, 
-                 physical_findings=None, lab_results=None, diagnostic_hints=None, 
+    def __init__(self, name_english="", name_portuguese="", category="", severity="",
+                 description_english="", description_portuguese="", symptoms=None,
+                 physical_findings=None, lab_results=None, diagnostic_hints=None,
                  source_pdf="", extraction_confidence=0.0):
         self.name_english = name_english
         self.name_portuguese = name_portuguese
@@ -216,28 +215,30 @@ class MedicalPDFExtractor:
         self._rate_limit()
         
         prompt = f"""
-You are a medical expert extracting information from a medical textbook. 
+You are a medical expert extracting information from a medical textbook.
+ANALYZE this text and extract medical condition information IN ENGLISH.
+If this text describes a clear medical condition/disease, return a JSON object. If not, return exactly "null".
 
-ANALYZE this text and extract medical condition information. If this text describes a clear medical condition/disease, return a JSON object. If not, return exactly "null".
-
-REQUIRED JSON FORMAT (only if medical condition found):
+REQUIRED JSON FORMAT (ENGLISH ONLY - Portuguese will be added later):
 {{
-    "disease_name": "Exact medical condition name",
+    "disease_name": "Exact medical condition name in English",
     "category": "ONE of: Cardiovascular, Respiratory, Gastrointestinal, Neurological, Endocrine, Infectious, Hematological, Musculoskeletal, Dermatological, Psychiatric, Oncological, Other",
     "severity": "ONE of: Mild, Moderate, Severe, Critical, Chronic, Variable",
-    "description": "2-3 sentence clinical description",
-    "chief_complaints": ["2-4 main symptoms patients report"],
-    "additional_symptoms": ["2-4 other possible symptoms"],
-    "physical_findings": ["2-4 physical exam findings"],
-    "laboratory_results": ["2-4 lab/imaging findings"],
-    "diagnostic_hints": ["2-4 clinical pearls or diagnostic clues"],
+    "description": "2-3 sentence clinical description in English",
+    "chief_complaints": ["2-4 main symptoms patients report in English"],
+    "additional_symptoms": ["2-4 other possible symptoms in English"],
+    "physical_findings": ["2-4 physical exam findings in English"],
+    "laboratory_results": ["2-4 lab/imaging findings in English"],
+    "diagnostic_hints": ["2-4 clinical pearls or diagnostic clues in English"],
     "confidence": 0.85
 }}
+
+IMPORTANT: Return ONLY English text. Portuguese translations will be added in a separate step.
 
 TEXT TO ANALYZE:
 {chunk['text'][:2500]}
 
-Extract medical condition data or return "null":
+Extract medical condition data in English or return "null":
 """
         
         try:
@@ -252,8 +253,8 @@ Extract medical condition data or return "null":
             if content.lower().strip() == "null":
                 return None
             
-            content = re.sub(r'^```json\s*', '', content)
-            content = re.sub(r'\s*```$', '', content)
+            content = re.sub(r'^\`\`\`json\s*', '', content)
+            content = re.sub(r'\s*\`\`\`$', '', content)
             
             data = json.loads(content)
             
@@ -271,12 +272,23 @@ Extract medical condition data or return "null":
     def translate_to_portuguese(self, medical_data):
         self._rate_limit()
         
+        # Create a prompt that asks for ADDITIONS, not replacements
         prompt = f"""
-Translate this medical information to Brazilian Portuguese. Use proper medical terminology.
+You are a medical translator. Take this English medical data and ADD Portuguese translations.
+Return the SAME JSON structure but ADD Portuguese fields alongside English ones.
+
+KEEP ALL EXISTING ENGLISH FIELDS. ADD these Portuguese fields:
+- disease_name_portuguese
+- description_portuguese
+- chief_complaints_portuguese (array)
+- additional_symptoms_portuguese (array)
+- physical_findings_portuguese (array)
+- laboratory_results_portuguese (array)
+- diagnostic_hints_portuguese (array)
 
 INPUT: {json.dumps(medical_data, indent=2)}
 
-OUTPUT: Same JSON structure with Portuguese translations added.
+OUTPUT: Same structure with Portuguese fields ADDED (not replaced):
 """
         
         try:
@@ -287,13 +299,35 @@ OUTPUT: Same JSON structure with Portuguese translations added.
             )
             
             content = response.content[0].text.strip()
-            content = re.sub(r'^```json\s*', '', content)
-            content = re.sub(r'\s*```$', '', content)
+            content = re.sub(r'^\`\`\`json\s*', '', content)
+            content = re.sub(r'\s*\`\`\`$', '', content)
             
-            return json.loads(content)
+            translated_data = json.loads(content)
+            
+            # MERGE instead of replace - keep original English data
+            merged_data = medical_data.copy()  # Start with English data
+            
+            # Add Portuguese translations
+            portuguese_fields = [
+                'disease_name_portuguese',
+                'description_portuguese',
+                'chief_complaints_portuguese',
+                'additional_symptoms_portuguese',
+                'physical_findings_portuguese',
+                'laboratory_results_portuguese',
+                'diagnostic_hints_portuguese'
+            ]
+            
+            for field in portuguese_fields:
+                if field in translated_data:
+                    merged_data[field] = translated_data[field]
+            
+            logger.info(f"✅ Added Portuguese translations for: {merged_data.get('disease_name', 'Unknown')}")
+            return merged_data
             
         except Exception as e:
             logger.warning(f"Translation error: {e}")
+            # Return original data if translation fails
             return medical_data
     
     def process_pdf_complete(self, pdf_path, max_pages=None):
@@ -317,8 +351,6 @@ OUTPUT: Same JSON structure with Portuguese translations added.
             max_conditions = int(os.getenv('MAX_CONDITIONS_PER_PDF', '999999'))
             
             for i, chunk in enumerate(chunks):
-                # No limit on conditions - process all relevant chunks
-                
                 logger.info(f"Processing chunk {i+1}/{len(chunks)} (relevance: {chunk['estimated_relevance']:.2f})")
                 
                 extracted_data = self.extract_medical_data_with_ai(chunk)
@@ -411,7 +443,7 @@ OUTPUT: Same JSON structure with Portuguese translations added.
             logger.error(f"Failed to save results: {e}")
 
 def main():
-    ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY') or "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"
+    ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY') or "API_KEY_PLACEHOLDER"
     PDF_DIRECTORY = "../pdfs"
     OUTPUT_DIRECTORY = "../output"
     MAX_PAGES_FOR_TESTING = os.getenv('MAX_PAGES_FOR_TESTING')
