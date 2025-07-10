@@ -922,16 +922,16 @@ struct DiagnosisResult {
     let testsOrdered: Int
 }
 
-// MARK: - Updated Claude AI Service (uses APIKeyManager)
+// MARK: - Claude AI Service
 class ClaudeAIService: ObservableObject {
+    private let apiKey: String
     private let baseURL = "https://api.anthropic.com/v1/messages"
     
     @Published var isGeneratingResponse = false
     @Published var lastError: String?
     
-    // UPDATED: Remove hardcoded API key
-    init() {
-        // No longer need hardcoded API key
+    init(apiKey: String) {
+        self.apiKey = apiKey
     }
     
     func generatePatientResponse(
@@ -940,14 +940,6 @@ class ClaudeAIService: ObservableObject {
         conversationHistory: [ConversationTurn],
         language: AppLanguage
     ) async -> String {
-        
-        // Get API key dynamically from APIKeyManager
-        guard let apiKey = APIKeyManager.shared.getAPIKey() else {
-            await MainActor.run {
-                lastError = "No API key configured. Please set up your Claude API key."
-            }
-            return getFallbackResponse(question: question, patientCase: patientCase, language: language)
-        }
         
         await MainActor.run {
             isGeneratingResponse = true
@@ -977,7 +969,7 @@ class ClaudeAIService: ObservableObject {
         """
         
         do {
-            let response = try await makeAPIRequest(prompt: fullPrompt, apiKey: apiKey)
+            let response = try await makeAPIRequest(prompt: fullPrompt)
             return response
         } catch {
             await MainActor.run {
@@ -992,10 +984,6 @@ class ClaudeAIService: ObservableObject {
         patientCase: PatientCase,
         language: AppLanguage
     ) async -> String {
-        
-        guard let apiKey = APIKeyManager.shared.getAPIKey() else {
-            return getTestFallbackResponse(testRequest: testRequest, patientCase: patientCase, language: language)
-        }
         
         await MainActor.run {
             isGeneratingResponse = true
@@ -1018,7 +1006,7 @@ class ClaudeAIService: ObservableObject {
         """
         
         do {
-            let response = try await makeAPIRequest(prompt: fullPrompt, apiKey: apiKey)
+            let response = try await makeAPIRequest(prompt: fullPrompt)
             return response
         } catch {
             return getTestFallbackResponse(testRequest: testRequest, patientCase: patientCase, language: language)
@@ -1109,7 +1097,7 @@ class ClaudeAIService: ObservableObject {
         }
     }
     
-    private func makeAPIRequest(prompt: String, apiKey: String) async throws -> String {
+    private func makeAPIRequest(prompt: String) async throws -> String {
         guard let url = URL(string: baseURL) else {
             throw NSError(domain: "Invalid URL", code: 0, userInfo: nil)
         }
@@ -1140,9 +1128,6 @@ class ClaudeAIService: ObservableObject {
         }
         
         guard 200...299 ~= httpResponse.statusCode else {
-            if httpResponse.statusCode == 401 {
-                throw NSError(domain: "Unauthorized", code: 401, userInfo: [NSLocalizedDescriptionKey: "Unauthorized. Please check your API key."])
-            }
             throw NSError(domain: "HTTP Error", code: httpResponse.statusCode, userInfo: nil)
         }
         
@@ -1229,7 +1214,7 @@ class ClaudeAIService: ObservableObject {
     }
 }
 
-// MARK: - Updated Main App to integrate with API Key system
+// MARK: - Main App
 @main
 struct MedicalDiagnosisApp: App {
     @StateObject private var userProfile = UserProfileManager()
@@ -1240,8 +1225,7 @@ struct MedicalDiagnosisApp: App {
                 LanguageSelectionView()
                     .environmentObject(userProfile)
             } else {
-                // CHANGE: Use MainAppWrapper instead of ContentView directly
-                MainAppWrapper()
+                ContentView()
                     .environmentObject(userProfile)
             }
         }
@@ -1328,10 +1312,7 @@ struct ContentView: View {
     @State private var selectedCategory = "All"
     @State private var showingProfile = false
     
-    // UPDATED: Dynamic categories instead of hardcoded
-    private var categories: [String] {
-        ["All"] + dataManager.getAllCategories()
-    }
+    private let categories = ["All", "Gastrointestinal", "Neurological", "Respiratory", "Cardiovascular", "Endocrine"]
     
     var filteredDiseases: [Disease] {
         let categoryFiltered = selectedCategory == "All" ?
@@ -1437,13 +1418,6 @@ struct ContentView: View {
                         showingProfile = true
                     }) {
                         Image(systemName: "person.circle")
-                            .font(.title2)
-                    }
-                }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink(destination: APIKeySettingsView()) {
-                        Image(systemName: "gearshape")
                             .font(.title2)
                     }
                 }
@@ -1685,12 +1659,12 @@ struct StatCard: View {
     }
 }
 
-// MARK: - Updated Patient Simulation View (Complete with all features)
+// MARK: - Patient Simulation View (Complete with all features)
 struct PatientSimulationView: View {
     let disease: Disease
     @EnvironmentObject var userProfile: UserProfileManager
     @EnvironmentObject var dataManager: MedicalDatabaseManager
-    @StateObject private var aiService = ClaudeAIService() // UPDATED: No hardcoded API key
+    @StateObject private var aiService = ClaudeAIService(apiKey: "API_KEY_PLACEHOLDER")
     
     @State private var currentQuestion = ""
     @State private var conversationHistory: [ConversationTurn] = []
@@ -1704,7 +1678,6 @@ struct PatientSimulationView: View {
     @State private var hintsUsed = 0
     @State private var testsOrdered = 0
     @State private var sessionStartTime = Date()
-    @State private var showingAPIKeySetup = false
     
     private var patientCase: PatientCase? {
         dataManager.getPatientCase(for: disease)
@@ -1876,25 +1849,10 @@ struct PatientSimulationView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             sessionStartTime = Date()
-            // Check if API key is configured when view appears
-            if !APIKeyManager.shared.isAPIKeyConfigured {
-                showingAPIKeySetup = true
-            }
         }
         .onDisappear {
             let sessionTime = Date().timeIntervalSince(sessionStartTime)
             userProfile.addStudyTime(sessionTime)
-        }
-        .alert("API Key Required", isPresented: $showingAPIKeySetup) {
-            Button("Setup API Key") {
-                showingAPIKeySetup = true
-            }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("Please configure your Claude API key to use AI features.")
-        }
-        .sheet(isPresented: $showingAPIKeySetup) {
-            APIKeySetupView()
         }
         .sheet(isPresented: $showingDiagnosisEntry) {
             DiagnosisEntryView(

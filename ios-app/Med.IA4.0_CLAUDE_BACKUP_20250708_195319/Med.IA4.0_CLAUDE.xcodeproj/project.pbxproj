@@ -15,12 +15,6 @@
 		BFF701612DF7906F00E81383 /* Med_IA4_0_CLAUDETests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFF701602DF7906F00E81383 /* Med_IA4_0_CLAUDETests.swift */; };
 		BFF7016B2DF7906F00E81383 /* Med_IA4_0_CLAUDEUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFF7016A2DF7906F00E81383 /* Med_IA4_0_CLAUDEUITests.swift */; };
 		BFF7016D2DF7906F00E81383 /* Med_IA4_0_CLAUDEUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFF7016C2DF7906F00E81383 /* Med_IA4_0_CLAUDEUITestsLaunchTests.swift */; };
-		BFFF30A52E1DE7D400E9DF56 /* APIKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFFF30A42E1DE7D400E9DF56 /* APIKeyManager.swift */; };
-		BFFF30A72E1DE8D500E9DF56 /* APIError.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFFF30A62E1DE8D500E9DF56 /* APIError.swift */; };
-		BFFF30A92E1DE92D00E9DF56 /* APIKeySetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFFF30A82E1DE92D00E9DF56 /* APIKeySetupView.swift */; };
-		BFFF30AB2E1DE95C00E9DF56 /* APIKeySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFFF30AA2E1DE95C00E9DF56 /* APIKeySettingsView.swift */; };
-		BFFF30AD2E1DE99900E9DF56 /* MainAppWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFFF30AC2E1DE99900E9DF56 /* MainAppWrapper.swift */; };
-		BFFF30AF2E1DEB4700E9DF56 /* NetworkManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFFF30AE2E1DEB4700E9DF56 /* NetworkManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -52,12 +46,6 @@
 		BFF701662DF7906F00E81383 /* Med.IA4.0_CLAUDEUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = Med.IA4.0_CLAUDEUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BFF7016A2DF7906F00E81383 /* Med_IA4_0_CLAUDEUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Med_IA4_0_CLAUDEUITests.swift; sourceTree = "<group>"; };
 		BFF7016C2DF7906F00E81383 /* Med_IA4_0_CLAUDEUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Med_IA4_0_CLAUDEUITestsLaunchTests.swift; sourceTree = "<group>"; };
-		BFFF30A42E1DE7D400E9DF56 /* APIKeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIKeyManager.swift; sourceTree = "<group>"; };
-		BFFF30A62E1DE8D500E9DF56 /* APIError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIError.swift; sourceTree = "<group>"; };
-		BFFF30A82E1DE92D00E9DF56 /* APIKeySetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIKeySetupView.swift; sourceTree = "<group>"; };
-		BFFF30AA2E1DE95C00E9DF56 /* APIKeySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIKeySettingsView.swift; sourceTree = "<group>"; };
-		BFFF30AC2E1DE99900E9DF56 /* MainAppWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainAppWrapper.swift; sourceTree = "<group>"; };
-		BFFF30AE2E1DEB4700E9DF56 /* NetworkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -88,9 +76,6 @@
 		BFF701432DF7906D00E81383 = {
 			isa = PBXGroup;
 			children = (
-				BFFF30AE2E1DEB4700E9DF56 /* NetworkManager.swift */,
-				BFFF30AC2E1DE99900E9DF56 /* MainAppWrapper.swift */,
-				BFFF30A02E1DE73C00E9DF56 /* API Management */,
 				BF9C39AC2E1DC4BA0095DAE1 /* medical_conditions.sqlite */,
 				BFF7014E2DF7906D00E81383 /* Med.IA4.0_CLAUDE */,
 				BFF7015F2DF7906F00E81383 /* Med.IA4.0_CLAUDETests */,
@@ -143,41 +128,6 @@
 				BFF7016C2DF7906F00E81383 /* Med_IA4_0_CLAUDEUITestsLaunchTests.swift */,
 			);
 			path = Med.IA4.0_CLAUDEUITests;
-			sourceTree = "<group>";
-		};
-		BFFF30A02E1DE73C00E9DF56 /* API Management */ = {
-			isa = PBXGroup;
-			children = (
-				BFFF30A32E1DE79000E9DF56 /* Models */,
-				BFFF30A22E1DE78300E9DF56 /* Views */,
-				BFFF30A12E1DE75F00E9DF56 /* Managers */,
-			);
-			path = "API Management";
-			sourceTree = "<group>";
-		};
-		BFFF30A12E1DE75F00E9DF56 /* Managers */ = {
-			isa = PBXGroup;
-			children = (
-				BFFF30A42E1DE7D400E9DF56 /* APIKeyManager.swift */,
-			);
-			path = Managers;
-			sourceTree = "<group>";
-		};
-		BFFF30A22E1DE78300E9DF56 /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				BFFF30A82E1DE92D00E9DF56 /* APIKeySetupView.swift */,
-				BFFF30AA2E1DE95C00E9DF56 /* APIKeySettingsView.swift */,
-			);
-			path = Views;
-			sourceTree = "<group>";
-		};
-		BFFF30A32E1DE79000E9DF56 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				BFFF30A62E1DE8D500E9DF56 /* APIError.swift */,
-			);
-			path = Models;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -311,12 +261,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BFFF30AB2E1DE95C00E9DF56 /* APIKeySettingsView.swift in Sources */,
-				BFFF30AD2E1DE99900E9DF56 /* MainAppWrapper.swift in Sources */,
-				BFFF30A92E1DE92D00E9DF56 /* APIKeySetupView.swift in Sources */,
-				BFFF30A52E1DE7D400E9DF56 /* APIKeyManager.swift in Sources */,
-				BFFF30AF2E1DEB4700E9DF56 /* NetworkManager.swift in Sources */,
-				BFFF30A72E1DE8D500E9DF56 /* APIError.swift in Sources */,
 				BF9C39AB2E19174E0095DAE1 /* MedicalDatabase.xcdatamodeld in Sources */,
 				BFF701502DF7906D00E81383 /* Med_IA4_0_CLAUDEApp.swift in Sources */,
 			);
