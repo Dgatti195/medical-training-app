@@ -1,6 +1,5 @@
 import SwiftUI
 
-// First Time Setup View
 struct FirstTimeSetupView: View {
     @EnvironmentObject var userProfile: UserProfileManager
     @Environment(\.dismiss) private var dismiss
@@ -154,124 +153,17 @@ struct FirstTimeSetupView: View {
         userProfile.profile.voiceInputEnabled = voiceInputEnabled
         userProfile.profile.isProfileSetupComplete = true
         userProfile.saveProfile()
+        dismiss()
     }
     
     private func skipSetup() {
         userProfile.profile.isProfileSetupComplete = true
         userProfile.saveProfile()
+        dismiss()
     }
 }
 
-struct MainAppWrapper: View {
-    @ObservedObject private var apiKeyManager = APIKeyManager.shared
-    @StateObject private var userProfile = UserProfileManager()
-    @State private var showingAPIKeySetup = false
-    @State private var showingFirstTimeSetup = false
-    @State private var hasCheckedAPIKey = false
-    
-    var body: some View {
-        Group {
-            if hasCheckedAPIKey {
-                if apiKeyManager.isAPIKeyConfigured {
-                    if userProfile.profile.isProfileSetupComplete {
-                        ContentView()
-                            .environmentObject(userProfile)
-                    } else {
-                        FirstTimeSetupView()
-                            .environmentObject(userProfile)
-                    }
-                } else {
-                    APIKeyRequiredView()
-                        .environmentObject(userProfile)
-                }
-            } else {
-                SplashScreenView()
-            }
-        }
-        .onAppear {
-            checkAPIKeyStatus()
-        }
-    }
-    
-    private func checkAPIKeyStatus() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            hasCheckedAPIKey = true
-        }
-    }
-}
-
-struct APIKeyRequiredView: View {
-    @EnvironmentObject var userProfile: UserProfileManager
-    @State private var showingSetup = false
-    
-    var body: some View {
-        VStack(spacing: 32) {
-            Spacer()
-            
-            VStack(spacing: 16) {
-                // Use your app's logo here
-                Image(systemName: "stethoscope")  // Replace with your app icon
-                    .font(.system(size: 80))
-                    .foregroundColor(.blue)
-                
-                Text("Welcome to Med.IA")  // Replace with your app name
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                
-                Text("AI-Powered Medical Training")
-                    .font(.title2)
-                    .foregroundColor(.secondary)
-            }
-            
-            VStack(spacing: 12) {
-                Text("To get started, you'll need to configure your Claude API key")
-                    .font(.body)
-                    .multilineTextAlignment(.center)
-                
-                Text("This enables AI-powered patient interviews and medical training features")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            .padding(.horizontal, 32)
-            
-            Spacer()
-            
-            Button(action: {
-                showingSetup = true
-            }) {
-                Text("Setup API Key")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(12)
-            }
-            .padding(.horizontal, 32)
-            .padding(.bottom, 32)
-        }
-        .sheet(isPresented: $showingSetup) {
-            APIKeySetupView()
-                .environmentObject(userProfile)
-        }
-    }
-}
-
-struct SplashScreenView: View {
-    var body: some View {
-        VStack(spacing: 20) {
-            // Your app logo
-            Image(systemName: "stethoscope")  // Replace with your actual logo
-                .font(.system(size: 80))
-                .foregroundColor(.blue)
-            
-            Text("Med.IA")  // Your app name
-                .font(.largeTitle)
-                .fontWeight(.bold)
-            
-            ProgressView()
-                .scaleEffect(1.2)
-        }
-    }
+#Preview {
+    FirstTimeSetupView()
+        .environmentObject(UserProfileManager())
 }

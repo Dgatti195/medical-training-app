@@ -1,9 +1,154 @@
 import SwiftUI
 import Foundation
 import SQLite3
+import Speech
+import AVFoundation
 
 // MARK: - Define SQLITE_TRANSIENT constant
 let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+
+// MARK: - Patient Personality System
+enum PersonalityType: String, CaseIterable, Codable {
+    case anxious = "anxious"
+    case stoic = "stoic" 
+    case talkative = "talkative"
+    case defensive = "defensive"
+    case cooperative = "cooperative"
+    case confused = "confused"
+    
+    func displayName(language: AppLanguage) -> String {
+        switch self {
+        case .anxious:
+            return language == .portuguese ? "Ansioso" : "Anxious"
+        case .stoic:
+            return language == .portuguese ? "Estoico" : "Stoic"
+        case .talkative:
+            return language == .portuguese ? "Falante" : "Talkative"
+        case .defensive:
+            return language == .portuguese ? "Defensivo" : "Defensive"
+        case .cooperative:
+            return language == .portuguese ? "Cooperativo" : "Cooperative"
+        case .confused:
+            return language == .portuguese ? "Confuso" : "Confused"
+        }
+    }
+    
+    func description(language: AppLanguage) -> String {
+        switch self {
+        case .anxious:
+            return language == .portuguese ? 
+                "Preocupado com os sintomas, faz muitas perguntas" :
+                "Worried about symptoms, asks many questions"
+        case .stoic:
+            return language == .portuguese ? 
+                "Relata sintomas de forma objetiva, minimiza dor" :
+                "Reports symptoms matter-of-factly, downplays pain"
+        case .talkative:
+            return language == .portuguese ? 
+                "Compartilha detalhes extras, histórias pessoais" :
+                "Shares extra details, personal stories"
+        case .defensive:
+            return language == .portuguese ? 
+                "Resistente a certas perguntas, pode ser evasivo" :
+                "Resistant to certain questions, may be evasive"
+        case .cooperative:
+            return language == .portuguese ? 
+                "Responde claramente, segue instruções bem" :
+                "Answers clearly, follows instructions well"
+        case .confused:
+            return language == .portuguese ? 
+                "Tem dificuldade em lembrar detalhes, pode estar desorientado" :
+                "Has trouble remembering details, may be disoriented"
+        }
+    }
+}
+
+enum CommunicationStyle: String, CaseIterable, Codable {
+    case direct = "direct"
+    case rambling = "rambling"
+    case minimal = "minimal"
+    case emotional = "emotional"
+    
+    func modifier(language: AppLanguage) -> String {
+        switch self {
+        case .direct:
+            return language == .portuguese ? "de forma direta" : "directly"
+        case .rambling:
+            return language == .portuguese ? "com muitos detalhes" : "with many details"
+        case .minimal:
+            return language == .portuguese ? "com poucas palavras" : "with few words"
+        case .emotional:
+            return language == .portuguese ? "de forma emotiva" : "emotionally"
+        }
+    }
+}
+
+struct PatientPersonality: Codable {
+    let type: PersonalityType
+    let communicationStyle: CommunicationStyle
+    let cooperationLevel: Double // 0.0-1.0
+    let painTolerance: Double // 0.0-1.0
+    let anxietyLevel: Double // 0.0-1.0
+    let trustLevel: Double // 0.0-1.0 (affects how much they reveal)
+    let memoryClarity: Double // 0.0-1.0 (affects detail accuracy)
+    
+    static func generateRandom() -> PatientPersonality {
+        let personalityType = PersonalityType.allCases.randomElement()!
+        
+        // Adjust probabilities based on personality type
+        let (cooperation, pain, anxiety, trust, memory) = generateTraits(for: personalityType)
+        
+        return PatientPersonality(
+            type: personalityType,
+            communicationStyle: CommunicationStyle.allCases.randomElement()!,
+            cooperationLevel: cooperation,
+            painTolerance: pain,
+            anxietyLevel: anxiety,
+            trustLevel: trust,
+            memoryClarity: memory
+        )
+    }
+    
+    private static func generateTraits(for type: PersonalityType) -> (Double, Double, Double, Double, Double) {
+        switch type {
+        case .anxious:
+            return (0.6, 0.3, 0.8, 0.5, 0.4) // Low pain tolerance, high anxiety
+        case .stoic:
+            return (0.8, 0.9, 0.2, 0.7, 0.8) // High pain tolerance, low anxiety
+        case .talkative:
+            return (0.9, 0.5, 0.3, 0.8, 0.6) // Very cooperative, shares everything
+        case .defensive:
+            return (0.3, 0.7, 0.6, 0.2, 0.7) // Low cooperation, low trust
+        case .cooperative:
+            return (0.9, 0.6, 0.3, 0.9, 0.9) // High in most positive traits
+        case .confused:
+            return (0.5, 0.5, 0.7, 0.6, 0.2) // Poor memory, moderate anxiety
+        }
+    }
+    
+    func getPersonalityPromptModifier(language: AppLanguage) -> String {
+        let langPrefix = language == .portuguese ? 
+            "Você é um paciente com personalidade" :
+            "You are a patient with a"
+        
+        let personalityDesc = type.description(language: language)
+        let commStyle = communicationStyle.modifier(language: language)
+        
+        let cooperationDesc = language == .portuguese ?
+            "Nível de cooperação: \(Int(cooperationLevel * 100))%" :
+            "Cooperation level: \(Int(cooperationLevel * 100))%"
+        
+        let anxietyDesc = language == .portuguese ?
+            "Nível de ansiedade: \(Int(anxietyLevel * 100))%" :
+            "Anxiety level: \(Int(anxietyLevel * 100))%"
+        
+        return """
+        \(langPrefix) \(personalityDesc.lowercased()). 
+        Você responde às perguntas \(commStyle). 
+        \(cooperationDesc), \(anxietyDesc).
+        """
+    }
+}
 
 // MARK: - Database Models
 struct Disease: Identifiable {
@@ -75,7 +220,91 @@ struct DiagnosticHint: Identifiable {
     }
 }
 
-// MARK: - Patient Demographics (Runtime Generated)
+// MARK: - Patient Demographics and History (Runtime Generated)
+struct SocialHistory {
+    let smokingStatus: String
+    let alcoholUse: String
+    let occupation: String
+    let exerciseLevel: String
+    let diet: String
+    let substanceUse: String
+    
+    func getDescription(language: AppLanguage) -> String {
+        if language == .portuguese {
+            return "Tabagismo: \(smokingStatus), Álcool: \(alcoholUse), Ocupação: \(occupation), Exercício: \(exerciseLevel), Dieta: \(diet)"
+        } else {
+            return "Smoking: \(smokingStatus), Alcohol: \(alcoholUse), Occupation: \(occupation), Exercise: \(exerciseLevel), Diet: \(diet)"
+        }
+    }
+}
+
+struct FamilyHistory {
+    let cardiovascularDisease: Bool
+    let diabetes: Bool
+    let cancer: Bool
+    let mentalHealth: Bool
+    let autoimmune: Bool
+    let neurologicalDisorders: Bool
+    let relevantConditions: [String]
+    
+    func getDescription(language: AppLanguage) -> String {
+        var conditions: [String] = []
+        
+        if language == .portuguese {
+            if cardiovascularDisease { conditions.append("Doença cardiovascular") }
+            if diabetes { conditions.append("Diabetes") }
+            if cancer { conditions.append("Câncer") }
+            if mentalHealth { conditions.append("Transtornos mentais") }
+            if autoimmune { conditions.append("Doenças autoimunes") }
+            if neurologicalDisorders { conditions.append("Distúrbios neurológicos") }
+            conditions.append(contentsOf: relevantConditions)
+            
+            return conditions.isEmpty ? "Sem história familiar significativa" : "História familiar: \(conditions.joined(separator: ", "))"
+        } else {
+            if cardiovascularDisease { conditions.append("Cardiovascular disease") }
+            if diabetes { conditions.append("Diabetes") }
+            if cancer { conditions.append("Cancer") }
+            if mentalHealth { conditions.append("Mental health disorders") }
+            if autoimmune { conditions.append("Autoimmune diseases") }
+            if neurologicalDisorders { conditions.append("Neurological disorders") }
+            conditions.append(contentsOf: relevantConditions)
+            
+            return conditions.isEmpty ? "No significant family history" : "Family history: \(conditions.joined(separator: ", "))"
+        }
+    }
+}
+
+enum DiseaseStage {
+    case early
+    case moderate
+    case advanced
+    case acute
+    case chronic
+    case remission
+    
+    func getDescription(language: AppLanguage) -> String {
+        if language == .portuguese {
+            switch self {
+            case .early: return "Inicial"
+            case .moderate: return "Moderado"
+            case .advanced: return "Avançado"
+            case .acute: return "Agudo"
+            case .chronic: return "Crônico"
+            case .remission: return "Remissão"
+            }
+        } else {
+            switch self {
+            case .early: return "Early stage"
+            case .moderate: return "Moderate stage"
+            case .advanced: return "Advanced stage"
+            case .acute: return "Acute"
+            case .chronic: return "Chronic"
+            case .remission: return "Remission"
+            }
+        }
+    }
+}
+
 struct PatientDemographics {
     let age: Int
     let gender: String
@@ -83,18 +312,28 @@ struct PatientDemographics {
     let name: String
     let height: String
     let weight: String
+    let socialHistory: SocialHistory
+    let familyHistory: FamilyHistory
     
     static func generateRandom(language: AppLanguage) -> PatientDemographics {
         let ages = Array(18...85)
         let genders = language == .portuguese ? ["masculino", "feminino"] : ["male", "female"]
         
         let maleNames = language == .portuguese ?
-            ["Carlos Santos", "João Pereira", "Ricardo Lima", "Fernando Costa", "André Silva", "Paulo Oliveira"] :
-            ["Michael Chen", "David Kim", "James Smith", "Robert Johnson", "Ahmed Hassan", "Carlos Rodriguez"]
+            ["Carlos Santos", "João Pereira", "Ricardo Lima", "Fernando Costa", "André Silva", "Paulo Oliveira", 
+             "Gabriel Rocha", "Lucas Ferreira", "Pedro Almeida", "Rafael Cardoso", "Mateus Barbosa", "Diego Martins",
+             "Bruno Nascimento", "Thiago Carvalho", "Rodrigo Moreira", "Leandro Dias", "Marcelo Ribeiro", "Daniel Cruz"] :
+            ["Michael Chen", "David Kim", "James Smith", "Robert Johnson", "Ahmed Hassan", "Carlos Rodriguez",
+             "William Garcia", "Benjamin Lee", "Christopher Martinez", "Daniel Thompson", "Matthew Anderson", "Jose Hernandez",
+             "Anthony Lewis", "Mark Taylor", "Steven Clark", "Kevin Walker", "Brian Hall", "Edward Young"]
         
         let femaleNames = language == .portuguese ?
-            ["Ana Silva", "Maria Oliveira", "Fernanda Costa", "Patrícia Souza", "Juliana Lima", "Carla Santos"] :
-            ["Sarah Johnson", "Maria Rodriguez", "Jennifer Smith", "Rebecca Martinez", "Lisa Wong", "Amanda Davis"]
+            ["Ana Silva", "Maria Oliveira", "Fernanda Costa", "Patrícia Souza", "Juliana Lima", "Carla Santos",
+             "Gabriela Rocha", "Beatriz Ferreira", "Camila Almeida", "Larissa Cardoso", "Amanda Barbosa", "Isabela Martins",
+             "Letícia Nascimento", "Mariana Carvalho", "Natália Moreira", "Priscila Dias", "Viviane Ribeiro", "Carolina Cruz"] :
+            ["Sarah Johnson", "Maria Rodriguez", "Jennifer Smith", "Rebecca Martinez", "Lisa Wong", "Amanda Davis",
+             "Jessica Garcia", "Emily Wilson", "Ashley Brown", "Michelle Lopez", "Samantha Taylor", "Elizabeth Martinez",
+             "Nicole Anderson", "Rachel Thomas", "Stephanie Jackson", "Lauren White", "Kimberly Harris", "Amy Clark"]
         
         let selectedGender = genders.randomElement()!
         let isFemale = selectedGender == (language == .portuguese ? "feminino" : "female")
@@ -104,35 +343,507 @@ struct PatientDemographics {
             ["Branco", "Pardo", "Negro", "Asiático", "Indígena"] :
             ["Caucasian", "Hispanic", "African American", "Asian", "Native American", "Middle Eastern"]
         
+        let selectedAge = ages.randomElement()!
+        let socialHistory = generateRandomSocialHistory(age: selectedAge, language: language)
+        let familyHistory = generateRandomFamilyHistory()
+        
         return PatientDemographics(
-            age: ages.randomElement()!,
+            age: selectedAge,
             gender: selectedGender,
             ethnicity: ethnicities.randomElement()!,
             name: names.randomElement()!,
-            height: generateRandomHeight(),
-            weight: generateRandomWeight()
+            height: generateRandomHeight(language: language),
+            weight: generateRandomWeight(language: language),
+            socialHistory: socialHistory,
+            familyHistory: familyHistory
         )
     }
     
-    private static func generateRandomHeight() -> String {
+    static func generateRealistic(for disease: Disease, language: AppLanguage) -> PatientDemographics {
+        // Age ranges based on common disease patterns
+        let ageRange = determineAgeRange(for: disease)
+        let ages = Array(ageRange)
+        
+        let genders = language == .portuguese ? ["masculino", "feminino"] : ["male", "female"]
+        
+        let maleNames = language == .portuguese ?
+            ["Carlos Santos", "João Pereira", "Ricardo Lima", "Fernando Costa", "André Silva", "Paulo Oliveira", 
+             "Gabriel Rocha", "Lucas Ferreira", "Pedro Almeida", "Rafael Cardoso", "Mateus Barbosa", "Diego Martins",
+             "Bruno Nascimento", "Thiago Carvalho", "Rodrigo Moreira", "Leandro Dias", "Marcelo Ribeiro", "Daniel Cruz"] :
+            ["Michael Chen", "David Kim", "James Smith", "Robert Johnson", "Ahmed Hassan", "Carlos Rodriguez",
+             "William Garcia", "Benjamin Lee", "Christopher Martinez", "Daniel Thompson", "Matthew Anderson", "Jose Hernandez",
+             "Anthony Lewis", "Mark Taylor", "Steven Clark", "Kevin Walker", "Brian Hall", "Edward Young"]
+        
+        let femaleNames = language == .portuguese ?
+            ["Ana Silva", "Maria Oliveira", "Fernanda Costa", "Patrícia Souza", "Juliana Lima", "Carla Santos",
+             "Gabriela Rocha", "Beatriz Ferreira", "Camila Almeida", "Larissa Cardoso", "Amanda Barbosa", "Isabela Martins",
+             "Letícia Nascimento", "Mariana Carvalho", "Natália Moreira", "Priscila Dias", "Viviane Ribeiro", "Carolina Cruz"] :
+            ["Sarah Johnson", "Maria Rodriguez", "Jennifer Smith", "Rebecca Martinez", "Lisa Wong", "Amanda Davis",
+             "Jessica Garcia", "Emily Wilson", "Ashley Brown", "Michelle Lopez", "Samantha Taylor", "Elizabeth Martinez",
+             "Nicole Anderson", "Rachel Thomas", "Stephanie Jackson", "Lauren White", "Kimberly Harris", "Amy Clark"]
+        
+        let selectedGender = genders.randomElement()!
+        let isFemale = selectedGender == (language == .portuguese ? "feminino" : "female")
+        let names = isFemale ? femaleNames : maleNames
+        
+        let ethnicities = language == .portuguese ?
+            ["Branco", "Pardo", "Negro", "Asiático", "Indígena"] :
+            ["Caucasian", "Hispanic", "African American", "Asian", "Native American", "Middle Eastern"]
+        
+        let selectedAge = ages.randomElement()!
+        
+        // Generate disease-aware social and family history
+        let socialHistory = generateDiseaseAwareSocialHistory(age: selectedAge, disease: disease, language: language)
+        let familyHistory = generateDiseaseAwareFamilyHistory(disease: disease)
+        
+        return PatientDemographics(
+            age: selectedAge,
+            gender: selectedGender,
+            ethnicity: ethnicities.randomElement()!,
+            name: names.randomElement()!,
+            height: generateRandomHeight(language: language),
+            weight: generateRandomWeight(language: language),
+            socialHistory: socialHistory,
+            familyHistory: familyHistory
+        )
+    }
+    
+    private static func determineAgeRange(for disease: Disease) -> ClosedRange<Int> {
+        let diseaseName = disease.nameEnglish.lowercased()
+        let category = disease.category.lowercased()
+        
+        // Pediatric conditions
+        if diseaseName.contains("congenital") || diseaseName.contains("pediatric") ||
+           category.contains("pediatric") {
+            return 1...17
+        }
+        
+        // Geriatric conditions
+        if diseaseName.contains("alzheimer") || diseaseName.contains("parkinson") ||
+           diseaseName.contains("osteoporosis") || diseaseName.contains("dementia") ||
+           category.contains("geriatric") {
+            return 65...85
+        }
+        
+        // Reproductive health conditions
+        if category.contains("gynecologic") || category.contains("obstetric") ||
+           diseaseName.contains("pregnancy") || diseaseName.contains("menstrual") {
+            return 15...50
+        }
+        
+        // Cardiovascular conditions (more common in older adults)
+        if category.contains("cardiovascular") || diseaseName.contains("heart") ||
+           diseaseName.contains("cardiac") || diseaseName.contains("coronary") {
+            return 40...80
+        }
+        
+        // Cancer (can affect any age but more common in adults)
+        if category.contains("oncology") || diseaseName.contains("cancer") ||
+           diseaseName.contains("tumor") || diseaseName.contains("carcinoma") {
+            return 30...75
+        }
+        
+        // Infectious diseases (more common in younger adults)
+        if category.contains("infectious") || diseaseName.contains("infection") ||
+           diseaseName.contains("pneumonia") || diseaseName.contains("sepsis") {
+            return 18...65
+        }
+        
+        // Default adult range
+        return 18...70
+    }
+    
+    private static func generateRandomSocialHistory(age: Int, language: AppLanguage) -> SocialHistory {
+        // Smoking status based on age and modern trends
+        let smokingOptions = language == .portuguese ?
+            ["Nunca fumou", "Ex-fumante", "Fumante atual (leve)", "Fumante atual (moderado)", "Fumante atual (pesado)"] :
+            ["Never smoked", "Former smoker", "Current light smoker", "Current moderate smoker", "Current heavy smoker"]
+        
+        let smokingWeights = age < 30 ? [60, 15, 20, 5, 0] : age < 50 ? [40, 35, 15, 8, 2] : [35, 40, 15, 8, 2]
+        let smokingStatus = weightedRandomChoice(options: smokingOptions, weights: smokingWeights)
+        
+        // Alcohol use
+        let alcoholOptions = language == .portuguese ?
+            ["Não bebe", "Ocasional", "Social", "Moderado", "Pesado"] :
+            ["Non-drinker", "Occasional", "Social drinker", "Moderate use", "Heavy use"]
+        
+        let alcoholWeights = [30, 25, 30, 12, 3]
+        let alcoholUse = weightedRandomChoice(options: alcoholOptions, weights: alcoholWeights)
+        
+        // Occupation based on age
+        let occupations = language == .portuguese ?
+            generatePortugueseOccupations(age: age) :
+            generateEnglishOccupations(age: age)
+        
+        let occupation = occupations.randomElement()!
+        
+        // Exercise level
+        let exerciseOptions = language == .portuguese ?
+            ["Sedentário", "Leve", "Moderado", "Intenso"] :
+            ["Sedentary", "Light", "Moderate", "Intense"]
+        
+        let exerciseWeights = age < 35 ? [15, 25, 45, 15] : age < 55 ? [25, 30, 35, 10] : [40, 35, 20, 5]
+        let exerciseLevel = weightedRandomChoice(options: exerciseOptions, weights: exerciseWeights)
+        
+        // Diet
+        let dietOptions = language == .portuguese ?
+            ["Dieta balanceada", "Fast food frequente", "Vegetariano", "Low-carb", "Mediterrânea"] :
+            ["Balanced diet", "Frequent fast food", "Vegetarian", "Low-carb", "Mediterranean"]
+        
+        let diet = dietOptions.randomElement()!
+        
+        // Substance use
+        let substanceOptions = language == .portuguese ?
+            ["Nenhum", "Maconha ocasional", "Medicamentos controlados"] :
+            ["None", "Occasional marijuana", "Prescription medications"]
+        
+        let substanceWeights = [85, 10, 5]
+        let substanceUse = weightedRandomChoice(options: substanceOptions, weights: substanceWeights)
+        
+        return SocialHistory(
+            smokingStatus: smokingStatus,
+            alcoholUse: alcoholUse,
+            occupation: occupation,
+            exerciseLevel: exerciseLevel,
+            diet: diet,
+            substanceUse: substanceUse
+        )
+    }
+    
+    private static func generateRandomFamilyHistory() -> FamilyHistory {
+        // Risk factors for common genetic conditions
+        let cardiovascularRisk = Double.random(in: 0...1) < 0.25 // 25% have family history of CV disease
+        let diabetesRisk = Double.random(in: 0...1) < 0.18 // 18% have family history of diabetes
+        let cancerRisk = Double.random(in: 0...1) < 0.20 // 20% have family history of cancer
+        let mentalHealthRisk = Double.random(in: 0...1) < 0.15 // 15% have family history of mental health
+        let autoimmuneRisk = Double.random(in: 0...1) < 0.08 // 8% have family history of autoimmune
+        let neurologicalRisk = Double.random(in: 0...1) < 0.10 // 10% have family history of neurological
+        
+        // Add specific relevant conditions occasionally
+        var relevantConditions: [String] = []
+        if Double.random(in: 0...1) < 0.05 {
+            let conditions = ["Huntington's disease", "Cystic fibrosis", "Sickle cell anemia", "Hemophilia", "Thalassemia"]
+            relevantConditions.append(conditions.randomElement()!)
+        }
+        
+        return FamilyHistory(
+            cardiovascularDisease: cardiovascularRisk,
+            diabetes: diabetesRisk,
+            cancer: cancerRisk,
+            mentalHealth: mentalHealthRisk,
+            autoimmune: autoimmuneRisk,
+            neurologicalDisorders: neurologicalRisk,
+            relevantConditions: relevantConditions
+        )
+    }
+    
+    private static func weightedRandomChoice(options: [String], weights: [Int]) -> String {
+        let totalWeight = weights.reduce(0, +)
+        let randomValue = Int.random(in: 0..<totalWeight)
+        
+        var currentWeight = 0
+        for (index, weight) in weights.enumerated() {
+            currentWeight += weight
+            if randomValue < currentWeight {
+                return options[index]
+            }
+        }
+        return options.last!
+    }
+    
+    private static func generatePortugueseOccupations(age: Int) -> [String] {
+        if age < 25 {
+            return ["Estudante", "Estagiário", "Atendente", "Vendedor", "Entregador", "Recepcionista"]
+        } else if age < 45 {
+            return ["Enfermeiro", "Professor", "Engenheiro", "Contador", "Advogado", "Desenvolvedor", "Gerente", "Técnico", "Designer"]
+        } else if age < 65 {
+            return ["Diretor", "Médico", "Consultor", "Proprietário", "Executivo", "Especialista", "Supervisor"]
+        } else {
+            return ["Aposentado", "Consultor", "Voluntário", "Pensionista"]
+        }
+    }
+    
+    private static func generateEnglishOccupations(age: Int) -> [String] {
+        if age < 25 {
+            return ["Student", "Intern", "Retail worker", "Server", "Delivery driver", "Receptionist"]
+        } else if age < 45 {
+            return ["Nurse", "Teacher", "Engineer", "Accountant", "Lawyer", "Developer", "Manager", "Technician", "Designer"]
+        } else if age < 65 {
+            return ["Director", "Physician", "Consultant", "Business owner", "Executive", "Specialist", "Supervisor"]
+        } else {
+            return ["Retired", "Consultant", "Volunteer", "Pensioner"]
+        }
+    }
+    
+    private static func generateDiseaseAwareSocialHistory(age: Int, disease: Disease, language: AppLanguage) -> SocialHistory {
+        let diseaseName = disease.nameEnglish.lowercased()
+        let category = disease.category.lowercased()
+        
+        // Base social history
+        var socialHistory = generateRandomSocialHistory(age: age, language: language)
+        
+        // Adjust based on disease risk factors
+        
+        // Smoking-related diseases get higher smoking rates
+        if diseaseName.contains("lung") || diseaseName.contains("copd") || 
+           diseaseName.contains("emphysema") || category.contains("respiratory") {
+            let smokingOptions = language == .portuguese ?
+                ["Ex-fumante", "Fumante atual (moderado)", "Fumante atual (pesado)"] :
+                ["Former smoker", "Current moderate smoker", "Current heavy smoker"]
+            socialHistory = SocialHistory(
+                smokingStatus: smokingOptions.randomElement()!,
+                alcoholUse: socialHistory.alcoholUse,
+                occupation: socialHistory.occupation,
+                exerciseLevel: socialHistory.exerciseLevel,
+                diet: socialHistory.diet,
+                substanceUse: socialHistory.substanceUse
+            )
+        }
+        
+        // Liver diseases get higher alcohol use
+        if diseaseName.contains("liver") || diseaseName.contains("hepatic") ||
+           diseaseName.contains("cirrhosis") {
+            let alcoholOptions = language == .portuguese ?
+                ["Moderado", "Pesado", "Ex-usuário pesado"] :
+                ["Moderate use", "Heavy use", "Former heavy user"]
+            socialHistory = SocialHistory(
+                smokingStatus: socialHistory.smokingStatus,
+                alcoholUse: alcoholOptions.randomElement()!,
+                occupation: socialHistory.occupation,
+                exerciseLevel: socialHistory.exerciseLevel,
+                diet: socialHistory.diet,
+                substanceUse: socialHistory.substanceUse
+            )
+        }
+        
+        // Occupational diseases get specific occupations
+        if diseaseName.contains("asbestos") || diseaseName.contains("mesothelioma") {
+            let occupations = language == .portuguese ?
+                ["Ex-trabalhador da construção", "Ex-mecânico", "Ex-soldador"] :
+                ["Former construction worker", "Former mechanic", "Former welder"]
+            socialHistory = SocialHistory(
+                smokingStatus: socialHistory.smokingStatus,
+                alcoholUse: socialHistory.alcoholUse,
+                occupation: occupations.randomElement()!,
+                exerciseLevel: socialHistory.exerciseLevel,
+                diet: socialHistory.diet,
+                substanceUse: socialHistory.substanceUse
+            )
+        }
+        
+        // Cardiovascular diseases get poor exercise
+        if category.contains("cardiovascular") || diseaseName.contains("heart") {
+            let exerciseOptions = language == .portuguese ?
+                ["Sedentário", "Leve"] :
+                ["Sedentary", "Light"]
+            socialHistory = SocialHistory(
+                smokingStatus: socialHistory.smokingStatus,
+                alcoholUse: socialHistory.alcoholUse,
+                occupation: socialHistory.occupation,
+                exerciseLevel: exerciseOptions.randomElement()!,
+                diet: socialHistory.diet,
+                substanceUse: socialHistory.substanceUse
+            )
+        }
+        
+        return socialHistory
+    }
+    
+    private static func generateDiseaseAwareFamilyHistory(disease: Disease) -> FamilyHistory {
+        let diseaseName = disease.nameEnglish.lowercased()
+        let category = disease.category.lowercased()
+        
+        // Base family history
+        var familyHistory = generateRandomFamilyHistory()
+        
+        // Increase relevant family history based on disease
+        if category.contains("cardiovascular") || diseaseName.contains("heart") ||
+           diseaseName.contains("cardiac") {
+            familyHistory = FamilyHistory(
+                cardiovascularDisease: true, // Much higher chance
+                diabetes: familyHistory.diabetes,
+                cancer: familyHistory.cancer,
+                mentalHealth: familyHistory.mentalHealth,
+                autoimmune: familyHistory.autoimmune,
+                neurologicalDisorders: familyHistory.neurologicalDisorders,
+                relevantConditions: familyHistory.relevantConditions
+            )
+        }
+        
+        if diseaseName.contains("diabetes") || category.contains("endocrine") {
+            familyHistory = FamilyHistory(
+                cardiovascularDisease: familyHistory.cardiovascularDisease,
+                diabetes: true, // Much higher chance
+                cancer: familyHistory.cancer,
+                mentalHealth: familyHistory.mentalHealth,
+                autoimmune: familyHistory.autoimmune,
+                neurologicalDisorders: familyHistory.neurologicalDisorders,
+                relevantConditions: familyHistory.relevantConditions
+            )
+        }
+        
+        if diseaseName.contains("cancer") || diseaseName.contains("carcinoma") ||
+           diseaseName.contains("tumor") || category.contains("oncology") {
+            familyHistory = FamilyHistory(
+                cardiovascularDisease: familyHistory.cardiovascularDisease,
+                diabetes: familyHistory.diabetes,
+                cancer: true, // Much higher chance
+                mentalHealth: familyHistory.mentalHealth,
+                autoimmune: familyHistory.autoimmune,
+                neurologicalDisorders: familyHistory.neurologicalDisorders,
+                relevantConditions: familyHistory.relevantConditions
+            )
+        }
+        
+        if category.contains("psychiatric") || category.contains("mental") ||
+           diseaseName.contains("depression") || diseaseName.contains("anxiety") {
+            familyHistory = FamilyHistory(
+                cardiovascularDisease: familyHistory.cardiovascularDisease,
+                diabetes: familyHistory.diabetes,
+                cancer: familyHistory.cancer,
+                mentalHealth: true, // Much higher chance
+                autoimmune: familyHistory.autoimmune,
+                neurologicalDisorders: familyHistory.neurologicalDisorders,
+                relevantConditions: familyHistory.relevantConditions
+            )
+        }
+        
+        if category.contains("autoimmune") || diseaseName.contains("rheumatoid") ||
+           diseaseName.contains("lupus") || diseaseName.contains("crohn") {
+            familyHistory = FamilyHistory(
+                cardiovascularDisease: familyHistory.cardiovascularDisease,
+                diabetes: familyHistory.diabetes,
+                cancer: familyHistory.cancer,
+                mentalHealth: familyHistory.mentalHealth,
+                autoimmune: true, // Much higher chance
+                neurologicalDisorders: familyHistory.neurologicalDisorders,
+                relevantConditions: familyHistory.relevantConditions
+            )
+        }
+        
+        if category.contains("neurological") || diseaseName.contains("alzheimer") ||
+           diseaseName.contains("parkinson") || diseaseName.contains("dementia") {
+            familyHistory = FamilyHistory(
+                cardiovascularDisease: familyHistory.cardiovascularDisease,
+                diabetes: familyHistory.diabetes,
+                cancer: familyHistory.cancer,
+                mentalHealth: familyHistory.mentalHealth,
+                autoimmune: familyHistory.autoimmune,
+                neurologicalDisorders: true, // Much higher chance
+                relevantConditions: familyHistory.relevantConditions
+            )
+        }
+        
+        return familyHistory
+    }
+    
+    private static func generateRandomHeight(language: AppLanguage) -> String {
         let heightCm = Int.random(in: 150...195)
         let heightInCm = Double(heightCm)
         
-        // Convert to feet and inches
-        let totalInches = heightInCm / 2.54
-        let feet = Int(totalInches / 12.0)
-        let inches = Int(totalInches.truncatingRemainder(dividingBy: 12.0))
-        
-        return String(format: "%d'%d\" (%d cm)", feet, inches, heightCm)
+        if language == .portuguese {
+            // Metric system - just centimeters
+            return String(format: "%d cm", heightCm)
+        } else {
+            // Imperial system - feet and inches with cm
+            let totalInches = heightInCm / 2.54
+            let feet = Int(totalInches / 12.0)
+            let inches = Int(totalInches.truncatingRemainder(dividingBy: 12.0))
+            
+            return String(format: "%d'%d\" (%d cm)", feet, inches, heightCm)
+        }
     }
     
-    private static func generateRandomWeight() -> String {
+    private static func generateRandomWeight(language: AppLanguage) -> String {
         let weightKg = Int.random(in: 45...120)
         let weightInKg = Double(weightKg)
-        let weightInLbs = weightInKg * 2.20462
         
-        return String(format: "%.0f lbs (%.0f kg)", weightInLbs, weightInKg)
+        if language == .portuguese {
+            // Metric system - just kilograms
+            return String(format: "%.0f kg", weightInKg)
+        } else {
+            // Imperial system - pounds with kg
+            let weightInLbs = weightInKg * 2.20462
+            return String(format: "%.0f lbs (%.0f kg)", weightInLbs, weightInKg)
+        }
     }
+}
+
+// MARK: - Helper Functions
+func translateGender(_ gender: String, to language: AppLanguage) -> String {
+    let lowercaseGender = gender.lowercased()
+    
+    if language == .portuguese {
+        // If it's already in Portuguese, return as is
+        if lowercaseGender.contains("masculino") || lowercaseGender.contains("feminino") {
+            return gender
+        }
+        // Translate from English to Portuguese
+        if lowercaseGender.contains("male") && !lowercaseGender.contains("female") {
+            return "masculino"
+        } else if lowercaseGender.contains("female") {
+            return "feminino"
+        }
+    } else {
+        // If it's already in English, return as is
+        if lowercaseGender.contains("male") || lowercaseGender.contains("female") {
+            return gender
+        }
+        // Translate from Portuguese to English
+        if lowercaseGender.contains("masculino") {
+            return "male"
+        } else if lowercaseGender.contains("feminino") {
+            return "female"
+        }
+    }
+    
+    return gender // Fallback to original if no match
+}
+
+// MARK: - Medical Category Translation
+func translateMedicalCategory(_ category: String, to language: AppLanguage) -> String {
+    guard language == .portuguese else { return category }
+    
+    let translations: [String: String] = [
+        // Main categories from your database
+        "All": "Todos",
+        "Cardiovascular": "Cardiovascular",
+        "Musculoskeletal": "Musculoesquelético",
+        "Neurological": "Neurológico",
+        "Gastrointestinal": "Gastrointestinal", 
+        "Infectious": "Infeccioso",
+        "Dermatological": "Dermatológico",
+        "Endocrine": "Endócrino",
+        "Hematological": "Hematológico",
+        "Respiratory": "Respiratório",
+        "Other": "Outros",
+        "Oncological": "Oncológico",
+        "Psychiatric": "Psiquiátrico",
+        "Gynecological": "Ginecológico",
+        "Urological": "Urológico",
+        "Ophthalmological": "Oftalmológico",
+        "Renal": "Renal",
+        "Vascular": "Vascular",
+        "Autoimmune": "Autoimune",
+        "Otological": "Otológico",
+        "Lymphatic": "Linfático",
+        "Metabolic/Toxic": "Metabólico/Tóxico",
+        "Multisystem": "Multissistêmico",
+        "Nutritional": "Nutricional",
+        "Otorhinolaryngological": "Otorrinolaringológico",
+        "Vasculitic": "Vasculítico",
+        "Vasculitis": "Vasculite",
+        
+        // Additional common categories
+        "Emergency": "Emergência",
+        "Chronic": "Crônico",
+        "Acute": "Agudo",
+        "General": "Geral",
+        "Pediatric": "Pediátrico",
+        "Geriatric": "Geriátrico"
+    ]
+    
+    return translations[category] ?? category
 }
 
 // MARK: - Database Manager
@@ -171,24 +882,47 @@ class DatabaseManager: ObservableObject {
         let documentsURL = try! fileManager.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
         let destinationURL = documentsURL.appendingPathComponent("medical_conditions.sqlite")
         
-        // Check if database already exists
-        if !fileManager.fileExists(atPath: destinationURL.path) {
-            // Try to copy from bundle
-            if let bundlePath = Bundle.main.path(forResource: "medical_conditions", ofType: "sqlite") {
-                let bundleURL = URL(fileURLWithPath: bundlePath)
-                
-                do {
-                    try fileManager.copyItem(at: bundleURL, to: destinationURL)
-                    print("✅ Database copied from bundle to documents directory")
-                } catch {
-                    print("❌ Error copying database: \(error)")
-                    print("Will create fallback database with sample data")
+        // Check if we have the populated database in the bundle
+        if let bundlePath = Bundle.main.path(forResource: "medical_conditions", ofType: "sqlite") {
+            let bundleURL = URL(fileURLWithPath: bundlePath)
+            
+            // Always copy the database from bundle to ensure we have the latest version with 447 conditions
+            do {
+                // Remove existing database if it exists to force fresh copy
+                if fileManager.fileExists(atPath: destinationURL.path) {
+                    try fileManager.removeItem(at: destinationURL)
+                    print("🔄 Removed old database to update with latest data")
                 }
-            } else {
-                print("❌ Database file not found in bundle - will create fallback")
+                
+                try fileManager.copyItem(at: bundleURL, to: destinationURL)
+                print("✅ Database with 447 conditions copied from bundle to documents directory")
+            } catch {
+                print("❌ Error copying database: \(error)")
+                print("Will create fallback database with sample data")
             }
         } else {
-            print("✅ Database already exists in documents directory")
+            print("❌ Database file not found in bundle - will create fallback")
+        }
+    }
+    
+    func forceCopyDatabase() {
+        // Close current database connection
+        if sqlite3_close(db) != SQLITE_OK {
+            print("Error closing database for update")
+        }
+        
+        // Force copy the database
+        copyDatabaseIfNeeded()
+        
+        // Reopen the database
+        let fileURL = try! FileManager.default
+            .url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: false)
+            .appendingPathComponent("medical_conditions.sqlite")
+        
+        if sqlite3_open(fileURL.path, &db) == SQLITE_OK {
+            print("Successfully reopened updated database")
+        } else {
+            print("Error reopening database after update")
         }
     }
     
@@ -546,10 +1280,52 @@ class DatabaseManager: ObservableObject {
 struct PatientCase {
     let disease: Disease
     let demographics: PatientDemographics
+    let personality: PatientPersonality
+    let diseaseStage: DiseaseStage
     let presentingSymptoms: [Symptom]
     let presentingFindings: [PhysicalFinding]
     let availableLabResults: [LabResult]
     let availableHints: [DiagnosticHint]
+    
+    // Computed property for AI prompt integration
+    func getPersonalizedPromptContext(language: AppLanguage) -> String {
+        let personalityModifier = personality.getPersonalityPromptModifier(language: language)
+        let patientInfo = language == .portuguese ?
+            "Paciente: \(demographics.name), \(demographics.age) anos, \(demographics.gender)" :
+            "Patient: \(demographics.name), \(demographics.age) years old, \(demographics.gender)"
+        
+        let socialHistoryInfo = demographics.socialHistory.getDescription(language: language)
+        let familyHistoryInfo = demographics.familyHistory.getDescription(language: language)
+        let stageInfo = language == .portuguese ?
+            "Estágio da doença: \(diseaseStage.getDescription(language: language))" :
+            "Disease stage: \(diseaseStage.getDescription(language: language))"
+        
+        if language == .portuguese {
+            return """
+            \(personalityModifier)
+            \(patientInfo)
+            \(stageInfo)
+            
+            História Social: \(socialHistoryInfo)
+            \(familyHistoryInfo)
+            
+            Responda às perguntas do médico de acordo com sua personalidade, história e os sintomas que você tem. 
+            Lembre-se do estágio da sua doença ao descrever os sintomas.
+            """
+        } else {
+            return """
+            \(personalityModifier)
+            \(patientInfo)
+            \(stageInfo)
+            
+            Social History: \(socialHistoryInfo)
+            \(familyHistoryInfo)
+            
+            Answer the doctor's questions according to your personality, history, and symptoms.
+            Remember your disease stage when describing symptoms.
+            """
+        }
+    }
 }
 
 class MedicalDatabaseManager: ObservableObject {
@@ -584,6 +1360,10 @@ class MedicalDatabaseManager: ObservableObject {
             print("❌ No diseases loaded from database")
         } else {
             print("✅ Database load completed with \(diseases.count) diseases")
+            print("🔍 First few diseases loaded:")
+            for (index, disease) in diseases.prefix(5).enumerated() {
+                print("  \(index + 1). \(disease.nameEnglish) (Category: \(disease.category))")
+            }
             generateConsistentPatientCases()
         }
         
@@ -630,11 +1410,43 @@ class MedicalDatabaseManager: ObservableObject {
         patientCases = diseases.map { disease in
             generatePatientCase(from: disease, language: .english)
         }
-        print("Generated \(patientCases.count) consistent patient cases")
+        print("Generated \(patientCases.count) consistent patient cases from extracted PDF data")
         
         // Verify patient cases have data
         let casesWithSymptoms = patientCases.filter { !$0.presentingSymptoms.isEmpty }
         print("Patient cases with symptoms: \(casesWithSymptoms.count)/\(patientCases.count)")
+        
+        // Print some demographic distribution statistics
+        printPatientDemographics()
+    }
+    
+    private func printPatientDemographics() {
+        let ageGroups = Dictionary(grouping: patientCases) { patient in
+            switch patient.demographics.age {
+            case 1...17: return "Pediatric (1-17)"
+            case 18...39: return "Young Adult (18-39)" 
+            case 40...64: return "Middle Age (40-64)"
+            case 65...85: return "Elderly (65+)"
+            default: return "Other"
+            }
+        }
+        
+        print("\n=== PATIENT DEMOGRAPHICS ===")
+        for (group, patients) in ageGroups.sorted(by: { $0.key < $1.key }) {
+            print("\(group): \(patients.count) patients")
+        }
+        
+        let categoryDistribution = Dictionary(grouping: patientCases) { $0.disease.category }
+        print("\n=== DISEASE CATEGORIES ===")
+        for (category, patients) in categoryDistribution.sorted(by: { $0.value.count > $1.value.count }) {
+            print("\(category): \(patients.count) cases")
+        }
+        print("============================\n")
+    }
+    
+    func regeneratePatientCases() {
+        print("Regenerating patient cases with enhanced demographics...")
+        generateConsistentPatientCases()
     }
     
     func getPatientCase(for disease: Disease) -> PatientCase? {
@@ -642,7 +1454,8 @@ class MedicalDatabaseManager: ObservableObject {
     }
     
     func generatePatientCase(from disease: Disease, language: AppLanguage) -> PatientCase {
-        let demographics = PatientDemographics.generateRandom(language: language)
+        // Generate demographics that are appropriate for the disease
+        let demographics = PatientDemographics.generateRealistic(for: disease, language: language)
         
         // Get chief complaints (prioritize these)
         let chiefComplaints = disease.symptoms
@@ -654,19 +1467,32 @@ class MedicalDatabaseManager: ObservableObject {
             .filter { !$0.isChiefComplaint }
             .shuffled()
         
-        // Combine symptoms for presentation
+        // Create more realistic symptom presentation based on disease severity
         var presentingSymptoms: [Symptom] = []
         
-        // Always include at least 1-2 chief complaints if available
+        // Adjust symptom count based on disease category and severity
+        let isEmergency = disease.category.lowercased().contains("emergency") || 
+                         disease.severity.lowercased().contains("critical") ||
+                         disease.severity.lowercased().contains("severe")
+        
+        let isChronic = disease.category.lowercased().contains("chronic") ||
+                       disease.severity.lowercased().contains("chronic")
+        
+        // Always include chief complaints
         if !chiefComplaints.isEmpty {
-            let numberOfChiefComplaints = min(chiefComplaints.count, Int.random(in: 1...2))
-            presentingSymptoms.append(contentsOf: Array(chiefComplaints.prefix(numberOfChiefComplaints)))
+            let chiefCount = isEmergency ? min(chiefComplaints.count, 3) : 
+                           isChronic ? min(chiefComplaints.count, 2) :
+                           min(chiefComplaints.count, Int.random(in: 1...2))
+            presentingSymptoms.append(contentsOf: Array(chiefComplaints.prefix(chiefCount)))
         }
         
-        // Add some additional symptoms
+        // Add additional symptoms based on complexity
         if !additionalSymptoms.isEmpty {
-            let numberOfAdditionalSymptoms = min(additionalSymptoms.count, Int.random(in: 1...3))
-            presentingSymptoms.append(contentsOf: Array(additionalSymptoms.prefix(numberOfAdditionalSymptoms)))
+            let additionalCount = isEmergency ? Int.random(in: 2...4) :
+                                 isChronic ? Int.random(in: 1...3) :
+                                 Int.random(in: 0...2)
+            let actualCount = min(additionalSymptoms.count, additionalCount)
+            presentingSymptoms.append(contentsOf: Array(additionalSymptoms.prefix(actualCount)))
         }
         
         // If no symptoms at all, this indicates a data issue
@@ -674,20 +1500,149 @@ class MedicalDatabaseManager: ObservableObject {
             print("⚠️ Warning: No symptoms found for disease: \(disease.nameEnglish)")
         }
         
+        // Determine disease stage based on disease type and patient age
+        let diseaseStage = determineDiseaseStage(for: disease, patientAge: demographics.age)
+        
+        // Adjust symptoms and findings based on disease stage
+        let (stagingSymptoms, stagingFindings) = adjustForDiseaseStage(
+            symptoms: presentingSymptoms,
+            findings: disease.physicalFindings,
+            stage: diseaseStage
+        )
+        
         return PatientCase(
             disease: disease,
             demographics: demographics,
-            presentingSymptoms: presentingSymptoms,
-            presentingFindings: disease.physicalFindings,
+            personality: PatientPersonality.generateRandom(),
+            diseaseStage: diseaseStage,
+            presentingSymptoms: stagingSymptoms,
+            presentingFindings: stagingFindings,
             availableLabResults: disease.labResults,
             availableHints: disease.hints
         )
+    }
+    
+    private func determineDiseaseStage(for disease: Disease, patientAge: Int) -> DiseaseStage {
+        let diseaseName = disease.nameEnglish.lowercased()
+        let category = disease.category.lowercased()
+        let severity = disease.severity.lowercased()
+        
+        // Acute conditions
+        if severity.contains("acute") || diseaseName.contains("acute") ||
+           category.contains("emergency") || severity.contains("critical") {
+            return .acute
+        }
+        
+        // Chronic conditions
+        if severity.contains("chronic") || diseaseName.contains("chronic") ||
+           category.contains("chronic") {
+            return .chronic
+        }
+        
+        // Cancer staging
+        if diseaseName.contains("cancer") || diseaseName.contains("carcinoma") ||
+           diseaseName.contains("tumor") || category.contains("oncology") {
+            let stages: [DiseaseStage] = [.early, .moderate, .advanced]
+            let weights = patientAge < 50 ? [40, 40, 20] : patientAge < 70 ? [30, 40, 30] : [20, 30, 50]
+            return weightedRandomStageChoice(stages: stages, weights: weights)
+        }
+        
+        // Neurological conditions with progression
+        if diseaseName.contains("alzheimer") || diseaseName.contains("parkinson") ||
+           diseaseName.contains("dementia") || diseaseName.contains("multiple sclerosis") {
+            let stages: [DiseaseStage] = [.early, .moderate, .advanced]
+            let weights = patientAge < 60 ? [50, 35, 15] : patientAge < 75 ? [30, 45, 25] : [20, 40, 40]
+            return weightedRandomStageChoice(stages: stages, weights: weights)
+        }
+        
+        // Cardiovascular conditions
+        if category.contains("cardiovascular") || diseaseName.contains("heart") {
+            let stages: [DiseaseStage] = [.early, .moderate, .advanced]
+            let weights = patientAge < 45 ? [60, 30, 10] : patientAge < 65 ? [40, 40, 20] : [25, 45, 30]
+            return weightedRandomStageChoice(stages: stages, weights: weights)
+        }
+        
+        // Infectious diseases - usually acute
+        if category.contains("infectious") || diseaseName.contains("infection") ||
+           diseaseName.contains("pneumonia") || diseaseName.contains("sepsis") {
+            return .acute
+        }
+        
+        // Default to moderate stage
+        return .moderate
+    }
+    
+    private func weightedRandomStageChoice(stages: [DiseaseStage], weights: [Int]) -> DiseaseStage {
+        let totalWeight = weights.reduce(0, +)
+        let randomValue = Int.random(in: 0..<totalWeight)
+        
+        var currentWeight = 0
+        for (index, weight) in weights.enumerated() {
+            currentWeight += weight
+            if randomValue < currentWeight {
+                return stages[index]
+            }
+        }
+        return stages.last!
+    }
+    
+    private func adjustForDiseaseStage(symptoms: [Symptom], findings: [PhysicalFinding], stage: DiseaseStage) -> ([Symptom], [PhysicalFinding]) {
+        var adjustedSymptoms = symptoms
+        var adjustedFindings = findings
+        
+        switch stage {
+        case .early:
+            // Early stage: fewer symptoms, milder presentation
+            adjustedSymptoms = Array(symptoms.prefix(max(1, symptoms.count / 2)))
+            adjustedFindings = Array(findings.prefix(max(1, findings.count / 2)))
+            
+        case .moderate:
+            // Moderate stage: typical presentation
+            // Keep as is
+            break
+            
+        case .advanced:
+            // Advanced stage: more symptoms and findings
+            adjustedSymptoms = symptoms // Show all symptoms
+            adjustedFindings = findings // Show all findings
+            
+        case .acute:
+            // Acute: intense presentation
+            adjustedSymptoms = symptoms // Show all symptoms
+            adjustedFindings = findings // Show all findings
+            
+        case .chronic:
+            // Chronic: variable presentation, some symptoms may be adapted to
+            let adaptedCount = max(1, symptoms.count - Int.random(in: 1...2))
+            adjustedSymptoms = Array(symptoms.prefix(adaptedCount))
+            
+        case .remission:
+            // Remission: minimal symptoms
+            adjustedSymptoms = Array(symptoms.prefix(max(1, symptoms.count / 3)))
+            adjustedFindings = Array(findings.prefix(max(0, findings.count / 3)))
+        }
+        
+        return (adjustedSymptoms, adjustedFindings)
     }
     
     // MARK: - Data Management Methods
     
     func refreshData() {
         print("Refreshing database data...")
+        hasLoadedOnce = false
+        diseases = []
+        patientCases = []
+        loadingError = nil
+        loadDiseases()
+    }
+    
+    func forceUpdateDatabase() {
+        print("Forcing database update with latest extracted data...")
+        
+        // Force the database manager to re-copy from bundle
+        dbManager.forceCopyDatabase()
+        
+        // Clear and reload everything
         hasLoadedOnce = false
         diseases = []
         patientCases = []
@@ -809,6 +1764,34 @@ enum AppLanguage: String, CaseIterable {
     }
 }
 
+enum UserGender: String, CaseIterable, Codable {
+    case male = "male"
+    case female = "female" 
+    case preferNotToSay = "prefer_not_to_say"
+    
+    func displayName(language: AppLanguage) -> String {
+        switch self {
+        case .male:
+            return language == .portuguese ? "Masculino" : "Male"
+        case .female:
+            return language == .portuguese ? "Feminino" : "Female"
+        case .preferNotToSay:
+            return language == .portuguese ? "Prefiro não dizer" : "Prefer not to say"
+        }
+    }
+    
+    var profileImageName: String {
+        switch self {
+        case .male:
+            return "person.fill"
+        case .female:
+            return "person.dress"
+        case .preferNotToSay:
+            return "person.circle.fill"
+        }
+    }
+}
+
 struct UserProfile: Codable {
     var totalPatientsInterviewed: Int = 0
     var totalDiagnosesAttempted: Int = 0
@@ -820,6 +1803,21 @@ struct UserProfile: Codable {
     var studyTime: TimeInterval = 0
     var hintsUsed: Int = 0
     var testsOrdered: Int = 0
+    
+    // New profile fields
+    var userName: String = ""
+    var userGender: UserGender = .preferNotToSay
+    var isProfileSetupComplete: Bool = false
+    var voiceInputEnabled: Bool = false
+    
+    // Enhanced Performance Analytics Fields
+    var sessions: [SessionData] = []
+    var weeklyProgress: [WeeklyProgress] = []
+    var performanceMetrics: PerformanceMetrics = PerformanceMetrics()
+    var learningInsights: [LearningInsight] = []
+    var performanceTrends: [PerformanceTrend] = []
+    var currentSessionData: SessionData?
+    var overallDifficultLevel: DifficultLevel = .beginner
     
     var accuracyPercentage: Double {
         guard totalDiagnosesAttempted > 0 else { return 0 }
@@ -845,6 +1843,159 @@ struct DayStats: Codable {
     var studyTime: TimeInterval = 0
 }
 
+// MARK: - Enhanced Performance Analytics Structures
+
+struct SessionData: Codable, Identifiable {
+    var id = UUID()
+    let startTime: Date
+    var endTime: Date?
+    var patientCaseId: String
+    var diseaseCategory: String
+    var difficulty: DifficultLevel
+    var responseTimeSeconds: TimeInterval = 0
+    var questionsAsked: Int = 0
+    var hintsUsed: Int = 0
+    var testsOrdered: Int = 0
+    var finalDiagnosis: String = ""
+    var isCorrect: Bool = false
+    var confidenceScore: Double = 0.0 // 0.0-1.0
+    var completionStatus: SessionStatus = .inProgress
+    
+    var duration: TimeInterval {
+        guard let endTime = endTime else { return 0 }
+        return endTime.timeIntervalSince(startTime)
+    }
+}
+
+enum SessionStatus: String, CaseIterable, Codable {
+    case inProgress = "in_progress"
+    case completed = "completed"
+    case abandoned = "abandoned"
+}
+
+enum DifficultLevel: String, CaseIterable, Codable {
+    case beginner = "beginner"
+    case intermediate = "intermediate"
+    case advanced = "advanced"
+    case expert = "expert"
+    
+    func displayName(language: AppLanguage) -> String {
+        switch self {
+        case .beginner:
+            return language == .portuguese ? "Iniciante" : "Beginner"
+        case .intermediate:
+            return language == .portuguese ? "Intermediário" : "Intermediate"
+        case .advanced:
+            return language == .portuguese ? "Avançado" : "Advanced"
+        case .expert:
+            return language == .portuguese ? "Especialista" : "Expert"
+        }
+    }
+}
+
+struct PerformanceMetrics: Codable {
+    var averageResponseTime: TimeInterval = 0
+    var averageQuestionsPerCase: Double = 0
+    var averageConfidenceScore: Double = 0
+    var diagnosticEfficiency: Double = 0 // Correct diagnoses per minute
+    var improvementRate: Double = 0 // Week-over-week improvement
+    var consistencyScore: Double = 0 // How consistent performance is
+    var strongCategories: [String] = [] // Top performing categories
+    var weakCategories: [String] = [] // Categories needing improvement
+    var learningVelocity: Double = 0 // Rate of skill acquisition
+    var retentionRate: Double = 0 // Knowledge retention over time
+}
+
+struct WeeklyProgress: Codable, Identifiable {
+    var id = UUID()
+    let weekStartDate: Date
+    var totalSessions: Int = 0
+    var averageAccuracy: Double = 0
+    var averageResponseTime: TimeInterval = 0
+    var studyTimeHours: Double = 0
+    var difficultyCasesCompleted: [DifficultLevel: Int] = [:]
+    var categoryBreakdown: [String: CategoryStats] = [:]
+    var improvementFromLastWeek: Double = 0
+    
+    var weekEndDate: Date {
+        Calendar.current.date(byAdding: .day, value: 6, to: weekStartDate) ?? weekStartDate
+    }
+}
+
+struct LearningInsight: Codable, Identifiable {
+    var id = UUID()
+    let generatedDate: Date
+    let insightType: InsightType
+    let title: String
+    let description: String
+    let recommendation: String
+    let priority: InsightPriority
+    let relatedCategories: [String]
+    var isViewed: Bool = false
+    var isActionTaken: Bool = false
+}
+
+enum InsightType: String, CaseIterable, Codable {
+    case performance = "performance"
+    case learning = "learning"
+    case efficiency = "efficiency"
+    case knowledge = "knowledge"
+    case behavior = "behavior"
+    case performanceDecline = "performanceDecline"
+    case questioningStrategy = "questioningStrategy"
+    case learningVelocity = "learningVelocity"
+}
+
+enum InsightPriority: String, CaseIterable, Codable {
+    case low = "low"
+    case medium = "medium"
+    case high = "high"
+    case critical = "critical"
+    
+    var color: Color {
+        switch self {
+        case .low: return .gray
+        case .medium: return .blue
+        case .high: return .orange
+        case .critical: return .red
+        }
+    }
+}
+
+struct PerformanceTrend: Codable {
+    let metric: String
+    let dataPoints: [TrendDataPoint]
+    let trendDirection: TrendDirection
+    let changePercentage: Double
+}
+
+struct TrendDataPoint: Codable {
+    let date: Date
+    let value: Double
+}
+
+enum TrendDirection: String, CaseIterable, Codable {
+    case improving = "improving"
+    case declining = "declining"
+    case stable = "stable"
+    
+    var icon: String {
+        switch self {
+        case .improving: return "arrow.up.right"
+        case .declining: return "arrow.down.right"
+        case .stable: return "arrow.right"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .improving: return .green
+        case .declining: return .red
+        case .stable: return .blue
+        }
+    }
+}
+
 // MARK: - User Profile Manager
 class UserProfileManager: ObservableObject {
     @Published var profile = UserProfile()
@@ -855,11 +2006,11 @@ class UserProfileManager: ObservableObject {
     
     init() {
         loadProfile()
-        currentLanguage = AppLanguage(rawValue: profile.selectedLanguage) ?? .english
+        currentLanguage = AppLanguage(rawValue: self.profile.selectedLanguage) ?? .english
     }
     
     func saveProfile() {
-        if let encoded = try? JSONEncoder().encode(profile) {
+        if let encoded = try? JSONEncoder().encode(self.profile) {
             userDefaults.set(encoded, forKey: profileKey)
         }
     }
@@ -867,46 +2018,308 @@ class UserProfileManager: ObservableObject {
     func loadProfile() {
         if let data = userDefaults.data(forKey: profileKey),
            let decoded = try? JSONDecoder().decode(UserProfile.self, from: data) {
-            profile = decoded
+            self.profile = decoded
         }
     }
     
     func recordDiagnosis(disease: Disease, isCorrect: Bool, questionCount: Int, hintsUsed: Int, testsOrdered: Int) {
-        profile.totalPatientsInterviewed += 1
-        profile.totalDiagnosesAttempted += 1
-        profile.hintsUsed += hintsUsed
-        profile.testsOrdered += testsOrdered
+        self.profile.totalPatientsInterviewed += 1
+        self.profile.totalDiagnosesAttempted += 1
+        self.profile.hintsUsed += hintsUsed
+        self.profile.testsOrdered += testsOrdered
         
         if isCorrect {
-            profile.totalCorrectDiagnoses += 1
+            self.profile.totalCorrectDiagnoses += 1
         }
         
-        var categoryStats = profile.categoryPerformance[disease.category] ?? CategoryStats()
+        var categoryStats = self.profile.categoryPerformance[disease.category] ?? CategoryStats()
         if isCorrect {
             categoryStats.correct += 1
         } else {
             categoryStats.incorrect += 1
         }
-        profile.categoryPerformance[disease.category] = categoryStats
+        self.profile.categoryPerformance[disease.category] = categoryStats
         
         saveProfile()
     }
     
     func changeLanguage(_ language: AppLanguage) {
         currentLanguage = language
-        profile.selectedLanguage = language.rawValue
+        self.profile.selectedLanguage = language.rawValue
         saveProfile()
     }
     
     func addStudyTime(_ time: TimeInterval) {
-        profile.studyTime += time
+        self.profile.studyTime += time
         saveProfile()
+    }
+    
+    // MARK: - Session Management Methods
+    func startNewSession(patientCase: PatientCase) {
+        let sessionData = SessionData(
+            startTime: Date(),
+            patientCaseId: patientCase.disease.id.description,
+            diseaseCategory: patientCase.disease.category,
+            difficulty: determineDifficultyLevel(for: patientCase)
+        )
+        
+        self.profile.currentSessionData = sessionData
+    }
+    
+    private func determineDifficultyLevel(for patientCase: PatientCase) -> DifficultLevel {
+        // Logic to determine difficulty based on case complexity
+        let complexityFactors = [
+            patientCase.presentingSymptoms.count,
+            patientCase.availableLabResults.count,
+            patientCase.availableHints.count
+        ]
+        
+        let totalComplexity = complexityFactors.reduce(0, +)
+        
+        switch totalComplexity {
+        case 0...3: return .beginner
+        case 4...7: return .intermediate
+        case 8...12: return .advanced
+        default: return .expert
+        }
+    }
+    
+    func updateSessionProgress(questionsAsked: Int, hintsUsed: Int, testsOrdered: Int, responseTime: TimeInterval) {
+        guard var currentSession = self.profile.currentSessionData else { return }
+        
+        currentSession.questionsAsked = questionsAsked
+        currentSession.hintsUsed = hintsUsed
+        currentSession.testsOrdered = testsOrdered
+        currentSession.responseTimeSeconds = responseTime
+        
+        self.profile.currentSessionData = currentSession
+    }
+    
+    func completeSession(finalDiagnosis: String, isCorrect: Bool, confidenceScore: Double) {
+        guard var currentSession = self.profile.currentSessionData else { return }
+        
+        currentSession.endTime = Date()
+        currentSession.finalDiagnosis = finalDiagnosis
+        currentSession.isCorrect = isCorrect
+        currentSession.confidenceScore = confidenceScore
+        currentSession.completionStatus = .completed
+        
+        // Add to sessions history
+        self.profile.sessions.append(currentSession)
+        
+        // Update overall metrics
+        updatePerformanceMetrics()
+        updateWeeklyProgress()
+        generateLearningInsights()
+        
+        self.profile.currentSessionData = nil
+        saveProfile()
+    }
+    
+    func abandonSession() {
+        guard var currentSession = self.profile.currentSessionData else { return }
+        
+        currentSession.endTime = Date()
+        currentSession.completionStatus = .abandoned
+        self.profile.sessions.append(currentSession)
+        
+        self.profile.currentSessionData = nil
+        saveProfile()
+    }
+    
+    private func updatePerformanceMetrics() {
+        let completedSessions = self.profile.sessions.filter { $0.completionStatus == .completed }
+        guard !completedSessions.isEmpty else { return }
+        
+        // Calculate average response time
+        let totalResponseTime = completedSessions.reduce(0) { $0 + $1.responseTimeSeconds }
+        self.profile.performanceMetrics.averageResponseTime = totalResponseTime / Double(completedSessions.count)
+        
+        // Calculate average questions per case
+        let totalQuestions = completedSessions.reduce(0) { $0 + $1.questionsAsked }
+        self.profile.performanceMetrics.averageQuestionsPerCase = Double(totalQuestions) / Double(completedSessions.count)
+        
+        // Calculate average confidence
+        let totalConfidence = completedSessions.reduce(0) { $0 + $1.confidenceScore }
+        self.profile.performanceMetrics.averageConfidenceScore = totalConfidence / Double(completedSessions.count)
+        
+        // Calculate diagnostic efficiency (correct diagnoses per minute)
+        let correctSessions = completedSessions.filter { $0.isCorrect }
+        let totalStudyTimeMinutes = completedSessions.reduce(0) { $0 + $1.duration } / 60.0
+        self.profile.performanceMetrics.diagnosticEfficiency = totalStudyTimeMinutes > 0 ? Double(correctSessions.count) / totalStudyTimeMinutes : 0
+        
+        // Identify strong and weak categories
+        updateCategoryStrengths()
+        
+        // Calculate learning velocity and consistency
+        calculateAdvancedMetrics()
+    }
+    
+    private func updateWeeklyProgress() {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        // Get current week's start date
+        guard let weekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start else { return }
+        
+        // Find or create current week's progress
+        var currentWeek = self.profile.weeklyProgress.first { calendar.isDate($0.weekStartDate, inSameDayAs: weekStart) }
+        
+        if currentWeek == nil {
+            currentWeek = WeeklyProgress(weekStartDate: weekStart)
+        }
+        
+        // Update current week's data
+        let weekSessions = self.profile.sessions.filter { session in
+            calendar.isDate(session.startTime, equalTo: weekStart, toGranularity: .weekOfYear)
+        }
+        
+        let completedWeekSessions = weekSessions.filter { $0.completionStatus == .completed }
+        
+        if var week = currentWeek {
+            week.totalSessions = weekSessions.count
+            // Break down complex calculations to avoid type-checking timeout
+            if completedWeekSessions.isEmpty {
+                week.averageAccuracy = 0
+                week.averageResponseTime = 0
+            } else {
+                let correctCount = completedWeekSessions.filter { $0.isCorrect }.count
+                week.averageAccuracy = Double(correctCount) / Double(completedWeekSessions.count)
+                
+                let totalResponseTime = completedWeekSessions.reduce(0) { $0 + $1.responseTimeSeconds }
+                week.averageResponseTime = totalResponseTime / Double(completedWeekSessions.count)
+            }
+            
+            let totalDuration = weekSessions.reduce(0) { $0 + $1.duration }
+            week.studyTimeHours = totalDuration / 3600.0
+            
+            for session in completedWeekSessions {
+                week.difficultyCasesCompleted[session.difficulty, default: 0] += 1
+            }
+            
+            // Update or add to weekly progress
+            if let index = self.profile.weeklyProgress.firstIndex(where: { calendar.isDate($0.weekStartDate, inSameDayAs: weekStart) }) {
+                self.profile.weeklyProgress[index] = week
+            } else {
+                self.profile.weeklyProgress.append(week)
+            }
+        }
+        
+        // Keep only last 12 weeks
+        self.profile.weeklyProgress = self.profile.weeklyProgress.suffix(12)
+    }
+    
+    private func generateLearningInsights() {
+        var newInsights: [LearningInsight] = []
+        
+        // Insight 1: Performance decline detection
+        if self.profile.performanceMetrics.improvementRate < -0.1 {
+            newInsights.append(
+                LearningInsight(
+                    generatedDate: Date(),
+                    insightType: .performanceDecline,
+                    title: "Performance Decline Detected",
+                    description: "Your diagnostic accuracy has decreased recently. Consider reviewing fundamental concepts.",
+                    recommendation: "Focus on your weak categories and take more time with each case.",
+                    priority: .high,
+                    relatedCategories: self.profile.performanceMetrics.weakCategories
+                )
+            )
+        }
+        
+        // Insight 2: Question efficiency
+        if self.profile.performanceMetrics.averageQuestionsPerCase > 15 {
+            newInsights.append(
+                LearningInsight(
+                    generatedDate: Date(),
+                    insightType: .questioningStrategy,
+                    title: "Consider More Focused Questioning",
+                    description: "You're asking many questions per case. Try to focus on key diagnostic indicators.",
+                    recommendation: "Practice systematic approaches: chief complaint → associated symptoms → physical exam → targeted tests.",
+                    priority: .medium,
+                    relatedCategories: []
+                )
+            )
+        }
+        
+        // Insight 3: Learning velocity (positive feedback)
+        if self.profile.sessions.count >= 10 && self.profile.performanceMetrics.learningVelocity > 0.8 {
+            newInsights.append(
+                LearningInsight(
+                    generatedDate: Date(),
+                    insightType: .learningVelocity,
+                    title: "Excellent Learning Progress!",
+                    description: "You're showing strong improvement across multiple categories.",
+                    recommendation: "Consider challenging yourself with more complex cases in your strong areas.",
+                    priority: .medium,
+                    relatedCategories: self.profile.performanceMetrics.strongCategories
+                )
+            )
+        }
+        
+        // Add new insights and maintain reasonable list size
+        self.profile.learningInsights.append(contentsOf: newInsights)
+        self.profile.learningInsights = self.profile.learningInsights.suffix(10) // Keep only last 10 insights
+    }
+    
+    private func updateCategoryStrengths() {
+        var categoryPerformance: [String: (correct: Int, total: Int)] = [:]
+        
+        let completedSessions = self.profile.sessions.filter { $0.completionStatus == .completed }
+        for session in completedSessions {
+            let category = session.diseaseCategory
+            let current = categoryPerformance[category] ?? (correct: 0, total: 0)
+            categoryPerformance[category] = (
+                correct: current.correct + (session.isCorrect ? 1 : 0),
+                total: current.total + 1
+            )
+        }
+        
+        // Sort categories by accuracy
+        let sortedCategories = categoryPerformance.sorted { first, second in
+            let firstAccuracy = Double(first.value.correct) / Double(first.value.total)
+            let secondAccuracy = Double(second.value.correct) / Double(second.value.total)
+            return firstAccuracy > secondAccuracy
+        }
+        
+        // Update strong/weak categories
+        let topCategories = Array(sortedCategories.prefix(3))
+        let bottomCategories = Array(sortedCategories.suffix(3))
+        
+        self.profile.performanceMetrics.strongCategories = topCategories.map { $0.key }
+        self.profile.performanceMetrics.weakCategories = bottomCategories.map { $0.key }
+    }
+    
+    private func calculateAdvancedMetrics() {
+        let recentSessions = self.profile.sessions.suffix(20) // Last 20 sessions
+        guard recentSessions.count >= 5 else { return }
+        
+        // Calculate consistency score (how consistent performance is)
+        let accuracyScores = recentSessions.map { $0.isCorrect ? 1.0 : 0.0 }
+        let meanAccuracy = accuracyScores.reduce(0, +) / Double(accuracyScores.count)
+        
+        // Calculate variance in smaller steps to avoid type-checking timeout
+        let squaredDeviations = accuracyScores.map { pow($0 - meanAccuracy, 2) }
+        let variance = squaredDeviations.reduce(0, +) / Double(accuracyScores.count)
+        self.profile.performanceMetrics.consistencyScore = max(0, 1 - variance) // Higher score = more consistent
+        
+        // Calculate improvement rate (comparing first half vs second half of recent sessions)
+        let firstHalf = Array(recentSessions.prefix(recentSessions.count / 2))
+        let secondHalf = Array(recentSessions.suffix(recentSessions.count / 2))
+        
+        let firstHalfAccuracy = firstHalf.filter { $0.isCorrect }.count
+        let secondHalfAccuracy = secondHalf.filter { $0.isCorrect }.count
+        
+        let firstHalfRate = Double(firstHalfAccuracy) / Double(firstHalf.count)
+        let secondHalfRate = Double(secondHalfAccuracy) / Double(secondHalf.count)
+        
+        self.profile.performanceMetrics.improvementRate = secondHalfRate - firstHalfRate
     }
 }
 
 // MARK: - Conversation Models
 struct ConversationTurn: Identifiable {
-    let id = UUID()
+    var id = UUID()
     let question: String
     let response: String
     let timestamp: Date
@@ -920,6 +2333,7 @@ struct DiagnosisResult {
     let patientName: String
     let hintsUsed: Int
     let testsOrdered: Int
+    let feedback: String
 }
 
 // MARK: - Updated Claude AI Service (uses APIKeyManager)
@@ -1028,23 +2442,54 @@ class ClaudeAIService: ObservableObject {
     private func createPatientSystemPrompt(patientCase: PatientCase, language: AppLanguage) -> String {
         let demographics = patientCase.demographics
         let disease = patientCase.disease
+        let personality = patientCase.personality
         let symptoms = patientCase.presentingSymptoms.map { $0.getText(language) }.joined(separator: ", ")
+        
+        // Get personality-specific behavior modifiers
+        let personalityContext = personality.getPersonalityPromptModifier(language: language)
+        
+        // Pre-calculate complex expressions to avoid type-checking timeout
+        let personalityTypeDisplay = personality.type.displayName(language: language)
+        let communicationStyleModifier = personality.communicationStyle.modifier(language: language)
+        let cooperationPercent = Int(personality.cooperationLevel * 100)
+        let painTolerancePercent = Int(personality.painTolerance * 100)
+        let anxietyPercent = Int(personality.anxietyLevel * 100)
+        let trustPercent = Int(personality.trustLevel * 100)
+        let memoryPercent = Int(personality.memoryClarity * 100)
         
         if language == .portuguese {
             return """
-            Você é um paciente de \(demographics.age) anos, \(demographics.gender), chamado \(demographics.name). Você está no hospital sendo entrevistado por um médico.
+            \(personalityContext)
             
+            INFORMAÇÕES DO PACIENTE:
+            Nome: \(demographics.name)
+            Idade: \(demographics.age) anos
+            Gênero: \(demographics.gender)
+            
+            INFORMAÇÕES MÉDICAS:
             CONDIÇÃO MÉDICA: \(disease.namePortuguese)
             SINTOMAS ATUAIS: \(symptoms)
             CATEGORIA: \(disease.category)
             SEVERIDADE: \(disease.severity)
             
+            MODIFICADORES DE PERSONALIDADE:
+            - Tipo de personalidade: \(personalityTypeDisplay)
+            - Estilo de comunicação: \(communicationStyleModifier)
+            - Nível de cooperação: \(cooperationPercent)%
+            - Tolerância à dor: \(painTolerancePercent)%
+            - Nível de ansiedade: \(anxietyPercent)%
+            - Nível de confiança: \(trustPercent)%
+            - Clareza da memória: \(memoryPercent)%
+            
             INSTRUÇÕES IMPORTANTES:
             - Responda APENAS como o paciente em português brasileiro
             - Você NÃO sabe o nome da sua condição médica - você só sabe os sintomas
             - Seja realista sobre seus sintomas e como se sente
-            - Responda com preocupação apropriada para a severidade
-            - Seja cooperativo mas não dê informações médicas que um paciente normal não saberia
+            - Responda de acordo com sua PERSONALIDADE específica
+            - Se sua cooperação é baixa, seja mais relutante em responder certas perguntas
+            - Se sua ansiedade é alta, demonstre preocupação e faça perguntas sobre os sintomas
+            - Se sua tolerância à dor é baixa, dramatize mais o desconforto
+            - Se sua memória é ruim, tenha dificuldade em lembrar detalhes específicos
             - Use linguagem simples, não termos médicos técnicos
             - Se perguntado sobre diagnóstico, diga que não sabe, só sabe como se sente
             - Seja consistente com sintomas já mencionados
@@ -1053,19 +2498,37 @@ class ClaudeAIService: ObservableObject {
             """
         } else {
             return """
-            You are a \(demographics.age)-year-old \(demographics.gender) patient named \(demographics.name). You are in the hospital being interviewed by a doctor.
+            \(personalityContext)
             
+            PATIENT INFORMATION:
+            Name: \(demographics.name)
+            Age: \(demographics.age) years old
+            Gender: \(demographics.gender)
+            
+            MEDICAL INFORMATION:
             MEDICAL CONDITION: \(disease.nameEnglish)
             CURRENT SYMPTOMS: \(symptoms)
             CATEGORY: \(disease.category)
             SEVERITY: \(disease.severity)
             
+            PERSONALITY MODIFIERS:
+            - Personality type: \(personalityTypeDisplay)
+            - Communication style: \(communicationStyleModifier)
+            - Cooperation level: \(cooperationPercent)%
+            - Pain tolerance: \(painTolerancePercent)%
+            - Anxiety level: \(anxietyPercent)%
+            - Trust level: \(trustPercent)%
+            - Memory clarity: \(memoryPercent)%
+            
             IMPORTANT INSTRUCTIONS:
             - Respond ONLY as the patient in English
             - You do NOT know the name of your medical condition - you only know your symptoms
             - Be realistic about your symptoms and how you feel
-            - Respond with appropriate concern for the severity
-            - Be cooperative but don't give medical information a normal patient wouldn't know
+            - Respond according to your specific PERSONALITY traits
+            - If your cooperation is low, be more reluctant to answer certain questions
+            - If your anxiety is high, show worry and ask questions about your symptoms
+            - If your pain tolerance is low, dramatize discomfort more
+            - If your memory is poor, have difficulty remembering specific details
             - Use simple language, not technical medical terms
             - If asked about diagnosis, say you don't know, you just know how you feel
             - Be consistent with symptoms already mentioned
@@ -1327,6 +2790,7 @@ struct ContentView: View {
     @State private var searchText = ""
     @State private var selectedCategory = "All"
     @State private var showingProfile = false
+    @State private var showingAnalytics = false
     
     // UPDATED: Dynamic categories instead of hardcoded
     private var categories: [String] {
@@ -1365,7 +2829,7 @@ struct ContentView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack {
                         ForEach(categories, id: \.self) { category in
-                            Button(category) {
+                            Button(translateMedicalCategory(category, to: userProfile.currentLanguage)) {
                                 selectedCategory = category
                             }
                             .padding(.horizontal, 16)
@@ -1404,6 +2868,25 @@ struct ContentView: View {
                         .cornerRadius(8)
                     }
                     .padding()
+                } else {
+                    // Debug info showing database status
+                    VStack {
+                        Text("Database: \(dataManager.diseases.count) conditions loaded")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        if dataManager.diseases.count < 400 {
+                            Button("Update Database (Load 447 conditions)") {
+                                dataManager.forceUpdateDatabase()
+                            }
+                            .font(.caption)
+                            .padding(8)
+                            .background(Color.orange)
+                            .foregroundColor(.white)
+                            .cornerRadius(6)
+                        }
+                    }
+                    .padding(.vertical, 4)
                 }
                 
                 // Diseases List
@@ -1414,20 +2897,6 @@ struct ContentView: View {
                             .environmentObject(dataManager)
                     }
                 }
-                
-                // Debug button (remove in production)
-                Button("Debug Database") {
-                    dataManager.debugDatabaseConnection()
-                    let issues = dataManager.validateData()
-                    if !issues.isEmpty {
-                        print("Data issues found:")
-                        issues.forEach { print("  - \($0)") }
-                    }
-                }
-                .padding()
-                .background(Color.orange)
-                .foregroundColor(.white)
-                .cornerRadius(8)
             }
             .navigationTitle(userProfile.currentLanguage == .portuguese ? "Base de Dados Médica" : "Medical Database")
             .navigationBarTitleDisplayMode(.large)
@@ -1442,14 +2911,29 @@ struct ContentView: View {
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink(destination: APIKeySettingsView()) {
-                        Image(systemName: "gearshape")
-                            .font(.title2)
+                    HStack {
+                        Button(action: {
+                            showingAnalytics = true
+                        }) {
+                            Image(systemName: "chart.bar.xaxis")
+                                .font(.title2)
+                        }
+                        
+                        FeedbackButton(language: userProfile.currentLanguage)
+                        
+                        NavigationLink(destination: APIKeySettingsView()) {
+                            Image(systemName: "gearshape")
+                                .font(.title2)
+                        }
                     }
                 }
             }
             .sheet(isPresented: $showingProfile) {
                 UserProfileView()
+                    .environmentObject(userProfile)
+            }
+            .sheet(isPresented: $showingAnalytics) {
+                AnalyticsDashboardView()
                     .environmentObject(userProfile)
             }
         }
@@ -1476,7 +2960,7 @@ struct PatientRowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let patientCase = dataManager.getPatientCase(for: disease) {
-                Text("\(language == .portuguese ? "Paciente:" : "Patient:") \(patientCase.demographics.name)")
+                Text("\(patientCase.demographics.name)")
                     .font(.headline)
                     .foregroundColor(.primary)
                 
@@ -1514,7 +2998,7 @@ struct PatientRowView: View {
                 }
                 
                 HStack {
-                    Text(disease.category)
+                    Text(translateMedicalCategory(disease.category, to: language))
                         .font(.caption)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
@@ -1557,13 +3041,61 @@ struct UserProfileView: View {
                 VStack(spacing: 24) {
                     // Profile Header
                     VStack(spacing: 16) {
-                        Image(systemName: "person.circle.fill")
+                        Image(systemName: userProfile.profile.userGender == .preferNotToSay ? 
+                              "person.circle.fill" : "person.fill")
                             .font(.system(size: 80))
-                            .foregroundColor(.blue)
+                            .foregroundColor(userProfile.profile.userGender == .female ? .pink : .blue)
                         
-                        Text(userProfile.currentLanguage == .portuguese ? "Perfil" : "Profile")
+                        Text(userProfile.profile.userName.isEmpty ? 
+                             (userProfile.currentLanguage == .portuguese ? "Perfil" : "Profile") :
+                             userProfile.profile.userName)
                             .font(.largeTitle)
                             .bold()
+                        
+                        if !userProfile.profile.userName.isEmpty {
+                            Text(userProfile.profile.userGender.displayName(language: userProfile.currentLanguage))
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    // Profile Information
+                    if !userProfile.profile.userName.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(userProfile.currentLanguage == .portuguese ? "Informações do Perfil" : "Profile Information")
+                                .font(.headline)
+                            
+                            VStack(spacing: 8) {
+                                HStack {
+                                    Text(userProfile.currentLanguage == .portuguese ? "Nome:" : "Name:")
+                                        .fontWeight(.medium)
+                                    Spacer()
+                                    Text(userProfile.profile.userName)
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                HStack {
+                                    Text(userProfile.currentLanguage == .portuguese ? "Gênero:" : "Gender:")
+                                        .fontWeight(.medium)
+                                    Spacer()
+                                    Text(userProfile.profile.userGender.displayName(language: userProfile.currentLanguage))
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                HStack {
+                                    Text(userProfile.currentLanguage == .portuguese ? "Entrada de Voz:" : "Voice Input:")
+                                        .fontWeight(.medium)
+                                    Spacer()
+                                    Text(userProfile.profile.voiceInputEnabled ? 
+                                         (userProfile.currentLanguage == .portuguese ? "Ativado" : "Enabled") :
+                                         (userProfile.currentLanguage == .portuguese ? "Desativado" : "Disabled"))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                        .padding()
+                        .background(Color.gray.opacity(0.1))
+                        .cornerRadius(10)
                     }
                     
                     // Language Settings
@@ -1638,9 +3170,25 @@ struct UserProfileView: View {
             .navigationTitle(userProfile.currentLanguage == .portuguese ? "Perfil" : "Profile")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    FeedbackButton(language: userProfile.currentLanguage)
+                }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(userProfile.currentLanguage == .portuguese ? "Concluído" : "Done") {
-                        dismiss()
+                    HStack {
+                        if !userProfile.profile.userName.isEmpty {
+                            Button(userProfile.currentLanguage == .portuguese ? "Editar" : "Edit") {
+                                // Reset profile setup to allow editing
+                                userProfile.profile.isProfileSetupComplete = false
+                                userProfile.saveProfile()
+                                dismiss()
+                            }
+                            .foregroundColor(.blue)
+                        }
+                        
+                        Button(userProfile.currentLanguage == .portuguese ? "Concluído" : "Done") {
+                            dismiss()
+                        }
                     }
                 }
             }
@@ -1685,6 +3233,1222 @@ struct StatCard: View {
     }
 }
 
+// MARK: - Performance Analytics Visualization Components
+
+struct PerformanceChartView: View {
+    let weeklyProgress: [WeeklyProgress]
+    let language: AppLanguage
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(language == .portuguese ? "Progresso Semanal" : "Weekly Progress")
+                .font(.headline)
+                .foregroundColor(.primary)
+            
+            if weeklyProgress.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .font(.system(size: 40))
+                        .foregroundColor(.gray)
+                    
+                    Text(language == .portuguese ? 
+                         "Complete mais sessões para ver seu progresso" :
+                         "Complete more sessions to see your progress")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(height: 150)
+                .frame(maxWidth: .infinity)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(weeklyProgress) { week in
+                            WeekProgressBar(
+                                week: week,
+                                language: language
+                            )
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+}
+
+struct WeekProgressBar: View {
+    let week: WeeklyProgress
+    let language: AppLanguage
+    
+    private var weekFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter
+    }
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(weekFormatter.string(from: week.weekStartDate))
+                .font(.caption2)
+                .foregroundColor(.secondary)
+            
+            VStack(spacing: 4) {
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(accuracyColor)
+                    .frame(width: 20, height: max(4, week.averageAccuracy * 1.5))
+                
+                Text("\(Int(week.averageAccuracy))%")
+                    .font(.caption2)
+                    .foregroundColor(.primary)
+            }
+            .frame(height: 150, alignment: .bottom)
+            
+            Text("\(week.totalSessions)")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+    }
+    
+    private var accuracyColor: Color {
+        switch week.averageAccuracy {
+        case 80...100: return .green
+        case 60...79: return .blue
+        case 40...59: return .orange
+        default: return .red
+        }
+    }
+}
+
+struct MetricsOverviewView: View {
+    let metrics: PerformanceMetrics
+    let language: AppLanguage
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(language == .portuguese ? "Métricas Detalhadas" : "Detailed Metrics")
+                .font(.headline)
+            
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
+                MetricCard(
+                    title: language == .portuguese ? "Tempo Médio" : "Avg Response",
+                    value: formatTime(metrics.averageResponseTime),
+                    icon: "clock",
+                    color: .blue
+                )
+                
+                MetricCard(
+                    title: language == .portuguese ? "Perguntas/Caso" : "Questions/Case",
+                    value: String(format: "%.1f", metrics.averageQuestionsPerCase),
+                    icon: "questionmark.circle",
+                    color: .orange
+                )
+                
+                MetricCard(
+                    title: language == .portuguese ? "Confiança" : "Confidence",
+                    value: String(format: "%.0f%%", metrics.averageConfidenceScore * 100),
+                    icon: "gauge",
+                    color: .green
+                )
+                
+                MetricCard(
+                    title: language == .portuguese ? "Consistência" : "Consistency",
+                    value: String(format: "%.0f%%", metrics.consistencyScore * 100),
+                    icon: "chart.line.flattrend.xyaxis",
+                    color: .purple
+                )
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+    
+    private func formatTime(_ timeInterval: TimeInterval) -> String {
+        if timeInterval < 60 {
+            return String(format: "%.0fs", timeInterval)
+        } else {
+            let minutes = Int(timeInterval / 60)
+            let seconds = Int(timeInterval.truncatingRemainder(dividingBy: 60))
+            return String(format: "%dm %ds", minutes, seconds)
+        }
+    }
+}
+
+struct MetricCard: View {
+    let title: String
+    let value: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundColor(color)
+            
+            Text(value)
+                .font(.title3)
+                .bold()
+                .foregroundColor(.primary)
+            
+            Text(title)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(8)
+        .shadow(radius: 1)
+    }
+}
+
+struct CategoryPerformanceView: View {
+    let categoryStats: [String: CategoryStats]
+    let strongCategories: [String]
+    let weakCategories: [String]
+    let language: AppLanguage
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(language == .portuguese ? "Performance por Categoria" : "Performance by Category")
+                .font(.headline)
+            
+            if categoryStats.isEmpty {
+                Text(language == .portuguese ? 
+                     "Complete mais casos para ver a análise por categoria" :
+                     "Complete more cases to see category analysis")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+            } else {
+                VStack(spacing: 12) {
+                    if !strongCategories.isEmpty {
+                        CategorySection(
+                            title: language == .portuguese ? "Pontos Fortes" : "Strong Areas",
+                            categories: strongCategories,
+                            categoryStats: categoryStats,
+                            color: .green,
+                            icon: "checkmark.circle.fill"
+                        )
+                    }
+                    
+                    if !weakCategories.isEmpty {
+                        CategorySection(
+                            title: language == .portuguese ? "Áreas a Melhorar" : "Areas to Improve",
+                            categories: weakCategories,
+                            categoryStats: categoryStats,
+                            color: .orange,
+                            icon: "exclamationmark.triangle.fill"
+                        )
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+}
+
+struct CategorySection: View {
+    let title: String
+    let categories: [String]
+    let categoryStats: [String: CategoryStats]
+    let color: Color
+    let icon: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: icon)
+                    .foregroundColor(color)
+                Text(title)
+                    .font(.subheadline)
+                    .bold()
+            }
+            
+            VStack(spacing: 4) {
+                ForEach(categories, id: \.self) { category in
+                    if let stats = categoryStats[category] {
+                        HStack {
+                            Text(category)
+                                .font(.caption)
+                            Spacer()
+                            Text(String(format: "%.0f%%", stats.accuracy))
+                                .font(.caption)
+                                .bold()
+                                .foregroundColor(color)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.horizontal)
+    }
+}
+
+struct LearningInsightsView: View {
+    let insights: [LearningInsight]
+    let language: AppLanguage
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(language == .portuguese ? "Insights de Aprendizado" : "Learning Insights")
+                .font(.headline)
+            
+            if insights.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "lightbulb")
+                        .font(.system(size: 30))
+                        .foregroundColor(.gray)
+                    
+                    Text(language == .portuguese ? 
+                         "Complete mais sessões para receber insights personalizados" :
+                         "Complete more sessions to receive personalized insights")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding()
+            } else {
+                LazyVStack(spacing: 12) {
+                    ForEach(insights.prefix(3)) { insight in
+                        InsightCard(insight: insight)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+}
+
+struct InsightCard: View {
+    let insight: LearningInsight
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Circle()
+                    .fill(insight.priority.color)
+                    .frame(width: 8, height: 8)
+                
+                Text(insight.title)
+                    .font(.subheadline)
+                    .bold()
+                
+                Spacer()
+                
+                Text(insightTypeIcon)
+                    .font(.caption)
+            }
+            
+            Text(insight.description)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            Text(insight.recommendation)
+                .font(.caption)
+                .italic()
+                .foregroundColor(.blue)
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(8)
+        .shadow(radius: 1)
+    }
+    
+    private var insightTypeIcon: String {
+        switch insight.insightType {
+        case .performance: return "📊"
+        case .learning: return "🧠"
+        case .efficiency: return "⚡"
+        case .knowledge: return "📚"
+        case .behavior: return "🎯"
+        case .performanceDecline: return "📉"
+        case .questioningStrategy: return "❓"
+        case .learningVelocity: return "🚀"
+        }
+    }
+}
+
+// MARK: - Enhanced Analytics Dashboard
+
+struct AnalyticsDashboardView: View {
+    @EnvironmentObject var userProfile: UserProfileManager
+    @State private var selectedTab = 0
+    @State private var timeRange: TimeRange = .month
+    
+    private let tabsData: [(titleEN: String, titlePT: String, icon: String)] = [
+        (titleEN: "Overview", titlePT: "Visão Geral", icon: "chart.bar"),
+        (titleEN: "Progress", titlePT: "Progresso", icon: "chart.line.uptrend.xyaxis"),
+        (titleEN: "Insights", titlePT: "Insights", icon: "lightbulb")
+    ]
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 0) {
+                // Time Range Selector
+                timeRangeSelector
+                
+                // Tab Selection
+                tabSelector
+                
+                // Content
+                ScrollView {
+                    LazyVStack(spacing: 20) {
+                        switch selectedTab {
+                        case 0:
+                            overviewContent
+                        case 1:
+                            progressContent
+                        case 2:
+                            insightsContent
+                        default:
+                            overviewContent
+                        }
+                    }
+                    .padding()
+                }
+            }
+            .navigationTitle(userProfile.currentLanguage == .portuguese ? "Análise Detalhada" : "Detailed Analytics")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+    
+    private var timeRangeSelector: some View {
+        HStack {
+            ForEach(TimeRange.allCases, id: \.self) { range in
+                Button(action: {
+                    timeRange = range
+                }) {
+                    Text(range.displayName(language: userProfile.currentLanguage))
+                        .font(.caption)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(timeRange == range ? Color.blue : Color.clear)
+                        .foregroundColor(timeRange == range ? .white : .blue)
+                        .cornerRadius(16)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+    }
+    
+    private var tabSelector: some View {
+        HStack {
+            ForEach(0..<3) { index in
+                Button(action: {
+                    selectedTab = index
+                }) {
+                    VStack(spacing: 4) {
+                        Image(systemName: tabsData[index].icon)
+                            .font(.title2)
+                        Text(userProfile.currentLanguage == .portuguese ? 
+                             getPortugueseTabTitle(index) : 
+                             getEnglishTabTitle(index))
+                            .font(.caption)
+                    }
+                    .foregroundColor(selectedTab == index ? .blue : .gray)
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .padding(.vertical, 12)
+        .background(Color(.systemGray6))
+    }
+    
+    private func getEnglishTabTitle(_ index: Int) -> String {
+        guard index < tabsData.count else { return "Overview" }
+        return tabsData[index].titleEN
+    }
+    
+    private func getPortugueseTabTitle(_ index: Int) -> String {
+        guard index < tabsData.count else { return "Visão Geral" }
+        return tabsData[index].titlePT
+    }
+    
+    @ViewBuilder
+    private var overviewContent: some View {
+        // Current Performance Summary
+        PerformanceSummaryCard(
+            profile: userProfile.profile,
+            language: userProfile.currentLanguage
+        )
+        
+        // Quick Metrics
+        MetricsOverviewView(
+            metrics: userProfile.profile.performanceMetrics,
+            language: userProfile.currentLanguage
+        )
+        
+        // Category Performance
+        CategoryPerformanceView(
+            categoryStats: userProfile.profile.categoryPerformance,
+            strongCategories: userProfile.profile.performanceMetrics.strongCategories,
+            weakCategories: userProfile.profile.performanceMetrics.weakCategories,
+            language: userProfile.currentLanguage
+        )
+        
+        // Recent Session History
+        RecentSessionsView(
+            sessions: Array(userProfile.profile.sessions.suffix(5)),
+            language: userProfile.currentLanguage
+        )
+    }
+    
+    @ViewBuilder
+    private var progressContent: some View {
+        // Weekly Progress Chart
+        PerformanceChartView(
+            weeklyProgress: userProfile.profile.weeklyProgress,
+            language: userProfile.currentLanguage
+        )
+        
+        // Difficulty Progression
+        DifficultyProgressionView(
+            sessions: userProfile.profile.sessions,
+            language: userProfile.currentLanguage
+        )
+        
+        // Improvement Trends
+        ImprovementTrendsView(
+            metrics: userProfile.profile.performanceMetrics,
+            weeklyProgress: userProfile.profile.weeklyProgress,
+            language: userProfile.currentLanguage
+        )
+    }
+    
+    @ViewBuilder
+    private var insightsContent: some View {
+        // Learning Insights
+        LearningInsightsView(
+            insights: userProfile.profile.learningInsights,
+            language: userProfile.currentLanguage
+        )
+        
+        // Performance Recommendations
+        RecommendationsView(
+            metrics: userProfile.profile.performanceMetrics,
+            categoryStats: userProfile.profile.categoryPerformance,
+            language: userProfile.currentLanguage
+        )
+        
+        // Goal Setting
+        GoalSettingView(
+            currentLevel: userProfile.profile.overallDifficultLevel,
+            language: userProfile.currentLanguage
+        )
+    }
+}
+
+enum TimeRange: String, CaseIterable {
+    case week = "week"
+    case month = "month"
+    case threeMonths = "three_months"
+    case year = "year"
+    
+    func displayName(language: AppLanguage) -> String {
+        switch self {
+        case .week:
+            return language == .portuguese ? "Semana" : "Week"
+        case .month:
+            return language == .portuguese ? "Mês" : "Month"
+        case .threeMonths:
+            return language == .portuguese ? "3 Meses" : "3 Months"
+        case .year:
+            return language == .portuguese ? "Ano" : "Year"
+        }
+    }
+}
+
+struct PerformanceSummaryCard: View {
+    let profile: UserProfile
+    let language: AppLanguage
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack {
+                VStack(alignment: .leading) {
+                    Text(language == .portuguese ? "Desempenho Atual" : "Current Performance")
+                        .font(.headline)
+                    Text(performanceLevel)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                performanceIndicator
+            }
+            
+            HStack(spacing: 20) {
+                StatItemView(
+                    title: language == .portuguese ? "Precisão" : "Accuracy",
+                    value: String(format: "%.0f%%", profile.accuracyPercentage),
+                    trend: accuracyTrend
+                )
+                
+                Divider()
+                
+                StatItemView(
+                    title: language == .portuguese ? "Sessões" : "Sessions",
+                    value: "\(profile.sessions.count)",
+                    trend: .stable
+                )
+                
+                Divider()
+                
+                StatItemView(
+                    title: language == .portuguese ? "Nível" : "Level",
+                    value: profile.overallDifficultLevel.displayName(language: language),
+                    trend: .improving
+                )
+            }
+        }
+        .padding()
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: [Color.blue.opacity(0.1), Color.blue.opacity(0.05)]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .cornerRadius(16)
+    }
+    
+    private var performanceLevel: String {
+        let accuracy = profile.accuracyPercentage
+        
+        switch accuracy {
+        case 90...100:
+            return language == .portuguese ? "Excelente" : "Excellent"
+        case 80..<90:
+            return language == .portuguese ? "Muito Bom" : "Very Good"
+        case 70..<80:
+            return language == .portuguese ? "Bom" : "Good"
+        case 60..<70:
+            return language == .portuguese ? "Regular" : "Average"
+        default:
+            return language == .portuguese ? "Precisa Melhorar" : "Needs Improvement"
+        }
+    }
+    
+    private var performanceIndicator: some View {
+        ZStack {
+            Circle()
+                .stroke(Color.gray.opacity(0.3), lineWidth: 8)
+            
+            Circle()
+                .trim(from: 0, to: profile.accuracyPercentage / 100)
+                .stroke(performanceColor, lineWidth: 8)
+                .rotationEffect(.degrees(-90))
+            
+            Text("\(Int(profile.accuracyPercentage))")
+                .font(.title2)
+                .bold()
+                .foregroundColor(performanceColor)
+        }
+        .frame(width: 60, height: 60)
+    }
+    
+    private var performanceColor: Color {
+        let accuracy = profile.accuracyPercentage
+        switch accuracy {
+        case 80...100: return .green
+        case 60..<80: return .blue
+        case 40..<60: return .orange
+        default: return .red
+        }
+    }
+    
+    private var accuracyTrend: TrendDirection {
+        guard profile.weeklyProgress.count >= 2 else { return .stable }
+        
+        let recent = profile.weeklyProgress.suffix(2)
+        let current = recent.last?.averageAccuracy ?? 0
+        let previous = recent.first?.averageAccuracy ?? 0
+        
+        if current > previous + 5 { return .improving }
+        else if current < previous - 5 { return .declining }
+        else { return .stable }
+    }
+}
+
+struct StatItemView: View {
+    let title: String
+    let value: String
+    let trend: TrendDirection
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.title3)
+                .bold()
+            
+            HStack(spacing: 4) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Image(systemName: trend.icon)
+                    .font(.caption)
+                    .foregroundColor(trend.color)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+struct RecentSessionsView: View {
+    let sessions: [SessionData]
+    let language: AppLanguage
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(language == .portuguese ? "Sessões Recentes" : "Recent Sessions")
+                .font(.headline)
+            
+            if sessions.isEmpty {
+                Text(language == .portuguese ? 
+                     "Nenhuma sessão completada ainda" :
+                     "No completed sessions yet")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding()
+            } else {
+                LazyVStack(spacing: 8) {
+                    ForEach(sessions) { session in
+                        SessionRowView(session: session, language: language)
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+}
+
+struct SessionRowView: View {
+    let session: SessionData
+    let language: AppLanguage
+    
+    private var dateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter
+    }
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(session.diseaseCategory)
+                    .font(.caption)
+                    .bold()
+                
+                Text(dateFormatter.string(from: session.startTime))
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            VStack(alignment: .trailing, spacing: 4) {
+                Image(systemName: session.isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .foregroundColor(session.isCorrect ? .green : .red)
+                
+                Text(formatDuration(session.duration))
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.vertical, 8)
+        .padding(.horizontal)
+        .background(Color.white)
+        .cornerRadius(8)
+    }
+    
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        let minutes = Int(duration / 60)
+        let seconds = Int(duration.truncatingRemainder(dividingBy: 60))
+        return String(format: "%dm %ds", minutes, seconds)
+    }
+}
+
+// MARK: - Additional Analytics Components
+
+struct DifficultyProgressionView: View {
+    let sessions: [SessionData]
+    let language: AppLanguage
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(language == .portuguese ? "Progressão de Dificuldade" : "Difficulty Progression")
+                .font(.headline)
+            
+            if sessions.isEmpty {
+                Text(language == .portuguese ? 
+                     "Complete mais sessões para ver a progressão" :
+                     "Complete more sessions to see progression")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding()
+            } else {
+                let difficultyBreakdown = calculateDifficultyBreakdown()
+                
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
+                    ForEach(DifficultLevel.allCases, id: \.self) { level in
+                        let count = difficultyBreakdown[level] ?? 0
+                        let accuracy = calculateAccuracyForLevel(level)
+                        
+                        DifficultyCard(
+                            level: level,
+                            count: count,
+                            accuracy: accuracy,
+                            language: language
+                        )
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+    
+    private func calculateDifficultyBreakdown() -> [DifficultLevel: Int] {
+        var breakdown: [DifficultLevel: Int] = [:]
+        
+        for session in sessions where session.completionStatus == .completed {
+            breakdown[session.difficulty, default: 0] += 1
+        }
+        
+        return breakdown
+    }
+    
+    private func calculateAccuracyForLevel(_ level: DifficultLevel) -> Double {
+        let levelSessions = sessions.filter { $0.difficulty == level && $0.completionStatus == .completed }
+        guard !levelSessions.isEmpty else { return 0 }
+        
+        let correctCount = levelSessions.filter { $0.isCorrect }.count
+        return Double(correctCount) / Double(levelSessions.count) * 100
+    }
+}
+
+struct DifficultyCard: View {
+    let level: DifficultLevel
+    let count: Int
+    let accuracy: Double
+    let language: AppLanguage
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(level.displayName(language: language))
+                .font(.caption)
+                .bold()
+            
+            Text("\(count)")
+                .font(.title2)
+                .bold()
+                .foregroundColor(levelColor)
+            
+            Text(language == .portuguese ? "casos" : "cases")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+            
+            if count > 0 {
+                Text(String(format: "%.0f%% precisão", accuracy))
+                    .font(.caption2)
+                    .foregroundColor(accuracyColor)
+            }
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(8)
+        .shadow(radius: 1)
+    }
+    
+    private var levelColor: Color {
+        switch level {
+        case .beginner: return .green
+        case .intermediate: return .blue
+        case .advanced: return .orange
+        case .expert: return .red
+        }
+    }
+    
+    private var accuracyColor: Color {
+        switch accuracy {
+        case 80...100: return .green
+        case 60..<80: return .blue
+        case 40..<60: return .orange
+        default: return .red
+        }
+    }
+}
+
+struct ImprovementTrendsView: View {
+    let metrics: PerformanceMetrics
+    let weeklyProgress: [WeeklyProgress]
+    let language: AppLanguage
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(language == .portuguese ? "Tendências de Melhoria" : "Improvement Trends")
+                .font(.headline)
+            
+            VStack(spacing: 12) {
+                TrendRow(
+                    title: language == .portuguese ? "Taxa de Melhoria" : "Improvement Rate",
+                    value: String(format: "%.1f%%", metrics.improvementRate * 100),
+                    trend: getTrendForImprovementRate(metrics.improvementRate),
+                    icon: "chart.line.uptrend.xyaxis"
+                )
+                
+                TrendRow(
+                    title: language == .portuguese ? "Consistência" : "Consistency",
+                    value: String(format: "%.1f%%", metrics.consistencyScore * 100),
+                    trend: getTrendForConsistencyScore(metrics.consistencyScore),
+                    icon: "chart.line.flattrend.xyaxis"
+                )
+                
+                TrendRow(
+                    title: language == .portuguese ? "Eficiência Diagnóstica" : "Diagnostic Efficiency",
+                    value: String(format: "%.2f", metrics.diagnosticEfficiency),
+                    trend: metrics.diagnosticEfficiency > 1.0 ? .improving : .stable,
+                    icon: "gauge"
+                )
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+    
+    private func getTrendForImprovementRate(_ rate: Double) -> TrendDirection {
+        if rate > 0 {
+            return .improving
+        } else if rate < 0 {
+            return .declining
+        } else {
+            return .stable
+        }
+    }
+    
+    private func getTrendForConsistencyScore(_ score: Double) -> TrendDirection {
+        if score > 0.7 {
+            return .improving
+        } else if score < 0.5 {
+            return .declining
+        } else {
+            return .stable
+        }
+    }
+}
+
+struct TrendRow: View {
+    let title: String
+    let value: String
+    let trend: TrendDirection
+    let icon: String
+    
+    var body: some View {
+        HStack {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundColor(.blue)
+                .frame(width: 30)
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Text(value)
+                    .font(.headline)
+                    .bold()
+            }
+            
+            Spacer()
+            
+            HStack(spacing: 4) {
+                Image(systemName: trend.icon)
+                    .font(.caption)
+                    .foregroundColor(trend.color)
+                
+                Text(trendText)
+                    .font(.caption)
+                    .foregroundColor(trend.color)
+            }
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(8)
+    }
+    
+    private var trendText: String {
+        switch trend {
+        case .improving: return "↗"
+        case .declining: return "↘"
+        case .stable: return "→"
+        }
+    }
+}
+
+struct RecommendationsView: View {
+    let metrics: PerformanceMetrics
+    let categoryStats: [String: CategoryStats]
+    let language: AppLanguage
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(language == .portuguese ? "Recomendações" : "Recommendations")
+                .font(.headline)
+            
+            LazyVStack(spacing: 12) {
+                ForEach(generateRecommendations(), id: \.title) { recommendation in
+                    RecommendationCard(recommendation: recommendation)
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+    
+    private func generateRecommendations() -> [Recommendation] {
+        var recommendations: [Recommendation] = []
+        
+        // Response time recommendation
+        if metrics.averageResponseTime > 300 { // More than 5 minutes
+            recommendations.append(Recommendation(
+                title: language == .portuguese ? "Melhore o Tempo de Resposta" : "Improve Response Time",
+                description: language == .portuguese ? 
+                    "Você está levando muito tempo para fazer diagnósticos. Tente ser mais decisivo." :
+                    "You're taking too long to make diagnoses. Try to be more decisive.",
+                actionText: language == .portuguese ? "Pratique casos rápidos" : "Practice quick cases",
+                priority: .medium,
+                icon: "clock"
+            ))
+        }
+        
+        // Questions per case recommendation
+        if metrics.averageQuestionsPerCase > 12 {
+            recommendations.append(Recommendation(
+                title: language == .portuguese ? "Faça Perguntas Mais Focadas" : "Ask More Focused Questions",
+                description: language == .portuguese ? 
+                    "Você está fazendo muitas perguntas. Concentre-se nos sintomas principais." :
+                    "You're asking too many questions. Focus on key symptoms.",
+                actionText: language == .portuguese ? "Revise técnicas de entrevista" : "Review interview techniques",
+                priority: .high,
+                icon: "questionmark.circle"
+            ))
+        }
+        
+        // Weak categories recommendation
+        if !metrics.weakCategories.isEmpty {
+            recommendations.append(Recommendation(
+                title: language == .portuguese ? "Foque nas Áreas Fracas" : "Focus on Weak Areas",
+                description: language == .portuguese ? 
+                    "Você precisa melhorar em: \(metrics.weakCategories.joined(separator: ", "))" :
+                    "You need improvement in: \(metrics.weakCategories.joined(separator: ", "))",
+                actionText: language == .portuguese ? "Estudar essas categorias" : "Study these categories",
+                priority: .high,
+                icon: "target"
+            ))
+        }
+        
+        // Consistency recommendation
+        if metrics.consistencyScore < 0.6 {
+            recommendations.append(Recommendation(
+                title: language == .portuguese ? "Melhore a Consistência" : "Improve Consistency",
+                description: language == .portuguese ? 
+                    "Seu desempenho varia muito. Tente manter um padrão mais consistente." :
+                    "Your performance varies too much. Try to maintain a more consistent pattern.",
+                actionText: language == .portuguese ? "Desenvolva rotina de estudo" : "Develop study routine",
+                priority: .medium,
+                icon: "chart.line.flattrend.xyaxis"
+            ))
+        }
+        
+        return recommendations
+    }
+}
+
+struct Recommendation {
+    let title: String
+    let description: String
+    let actionText: String
+    let priority: InsightPriority
+    let icon: String
+}
+
+struct RecommendationCard: View {
+    let recommendation: Recommendation
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: recommendation.icon)
+                    .font(.title3)
+                    .foregroundColor(recommendation.priority.color)
+                
+                Text(recommendation.title)
+                    .font(.subheadline)
+                    .bold()
+                
+                Spacer()
+                
+                Circle()
+                    .fill(recommendation.priority.color)
+                    .frame(width: 8, height: 8)
+            }
+            
+            Text(recommendation.description)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            Button(action: {
+                // Handle recommendation action
+            }) {
+                Text(recommendation.actionText)
+                    .font(.caption)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(recommendation.priority.color.opacity(0.2))
+                    .foregroundColor(recommendation.priority.color)
+                    .cornerRadius(12)
+            }
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(8)
+        .shadow(radius: 1)
+    }
+}
+
+struct GoalSettingView: View {
+    let currentLevel: DifficultLevel
+    let language: AppLanguage
+    @State private var selectedGoals: Set<String> = []
+    
+    private let availableGoals = [
+        "improve_accuracy", "reduce_time", "increase_consistency", 
+        "master_category", "advance_level", "reduce_hints"
+    ]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(language == .portuguese ? "Definir Metas" : "Set Goals")
+                .font(.headline)
+            
+            Text(language == .portuguese ? 
+                 "Selecione suas metas de aprendizado:" :
+                 "Select your learning goals:")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            LazyVStack(spacing: 8) {
+                ForEach(availableGoals, id: \.self) { goalId in
+                    GoalRow(
+                        goalId: goalId,
+                        language: language,
+                        isSelected: selectedGoals.contains(goalId)
+                    ) {
+                        if selectedGoals.contains(goalId) {
+                            selectedGoals.remove(goalId)
+                        } else {
+                            selectedGoals.insert(goalId)
+                        }
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+}
+
+struct GoalRow: View {
+    let goalId: String
+    let language: AppLanguage
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .foregroundColor(isSelected ? .blue : .gray)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(goalTitle)
+                        .font(.caption)
+                        .bold()
+                        .foregroundColor(.primary)
+                    
+                    Text(goalDescription)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+            }
+            .padding()
+            .background(Color.white)
+            .cornerRadius(8)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    private var goalTitle: String {
+        switch goalId {
+        case "improve_accuracy":
+            return language == .portuguese ? "Melhorar Precisão" : "Improve Accuracy"
+        case "reduce_time":
+            return language == .portuguese ? "Reduzir Tempo" : "Reduce Time"
+        case "increase_consistency":
+            return language == .portuguese ? "Aumentar Consistência" : "Increase Consistency"
+        case "master_category":
+            return language == .portuguese ? "Dominar Categoria" : "Master Category"
+        case "advance_level":
+            return language == .portuguese ? "Avançar Nível" : "Advance Level"
+        case "reduce_hints":
+            return language == .portuguese ? "Usar Menos Dicas" : "Use Fewer Hints"
+        default:
+            return goalId
+        }
+    }
+    
+    private var goalDescription: String {
+        switch goalId {
+        case "improve_accuracy":
+            return language == .portuguese ? "Alcançar 85%+ de precisão" : "Achieve 85%+ accuracy"
+        case "reduce_time":
+            return language == .portuguese ? "Diagnóstico em < 3 min" : "Diagnose in < 3 min"
+        case "increase_consistency":
+            return language == .portuguese ? "Manter desempenho estável" : "Maintain stable performance"
+        case "master_category":
+            return language == .portuguese ? "100% em uma categoria" : "100% in one category"
+        case "advance_level":
+            return language == .portuguese ? "Próximo nível de dificuldade" : "Next difficulty level"
+        case "reduce_hints":
+            return language == .portuguese ? "< 2 dicas por caso" : "< 2 hints per case"
+        default:
+            return ""
+        }
+    }
+}
+
 // MARK: - Updated Patient Simulation View (Complete with all features)
 struct PatientSimulationView: View {
     let disease: Disease
@@ -1696,6 +4460,7 @@ struct PatientSimulationView: View {
     @State private var conversationHistory: [ConversationTurn] = []
     @State private var showingDiagnosisEntry = false
     @State private var showingTestEntry = false
+    @State private var showingPersonalityDetails = false
     @State private var userDiagnosis = ""
     @State private var testRequest = ""
     @State private var showingResults = false
@@ -1715,21 +4480,39 @@ struct PatientSimulationView: View {
             // Patient Header
             if let patient = patientCase {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("\(userProfile.currentLanguage == .portuguese ? "Paciente:" : "Patient:") \(patient.demographics.name)")
+                    Text("\(patient.demographics.name)")
                         .font(.headline)
                     
-                    Text("\(patient.demographics.age) \(userProfile.currentLanguage == .portuguese ? "anos" : "years old"), \(patient.demographics.gender)")
+                    Text(getPatientAgeGenderText(patient: patient))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     
+                    Button(action: {
+                        showingPersonalityDetails = true
+                    }) {
+                        HStack {
+                            Image(systemName: "person.badge.shield.checkmark")
+                                .foregroundColor(.purple)
+                            Text(getPersonalityDisplayName(for: patient))
+                                .font(.caption)
+                                .foregroundColor(.purple)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 2)
+                                .background(Color.purple.opacity(0.1))
+                                .cornerRadius(4)
+                            Image(systemName: "info.circle")
+                                .font(.caption2)
+                                .foregroundColor(.purple.opacity(0.7))
+                        }
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(userProfile.currentLanguage == .portuguese ? "Queixa Principal:" : "Chief Complaint:")
+                        Text(getChiefComplaintTitle())
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
-                        let chiefComplaints = patient.presentingSymptoms.filter { $0.isChiefComplaint }
-                        
-                        if chiefComplaints.isEmpty {
+                        if getChiefComplaints(from: patient).isEmpty {
                             Text("Symptoms being evaluated...")
                                 .font(.subheadline)
                                 .padding(.horizontal, 12)
@@ -1737,7 +4520,7 @@ struct PatientSimulationView: View {
                                 .background(Color.orange.opacity(0.2))
                                 .cornerRadius(8)
                         } else {
-                            ForEach(chiefComplaints, id: \.id) { symptom in
+                            ForEach(getChiefComplaints(from: patient), id: \.id) { symptom in
                                 Text("• \(symptom.getText(userProfile.currentLanguage))")
                                     .font(.subheadline)
                                     .padding(.horizontal, 12)
@@ -1759,31 +4542,24 @@ struct PatientSimulationView: View {
                         ConversationBubbleView(turn: turn, language: userProfile.currentLanguage)
                     }
                     
-                    // Show loading indicator when AI is responding
                     if aiService.isGeneratingResponse {
                         HStack {
-                            VStack(alignment: .leading) {
-                                HStack {
-                                    ProgressView()
-                                        .scaleEffect(0.8)
-                                    Text(userProfile.currentLanguage == .portuguese ?
-                                         "Processando..." :
-                                         "Processing...")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                                .padding()
-                                .background(Color.gray.opacity(0.2))
-                                .cornerRadius(15)
-                            }
+                            ProgressView()
+                                .scaleEffect(0.8)
+                            Text(getProcessingText())
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                             Spacer()
                         }
+                        .padding()
+                        .background(Color.gray.opacity(0.2))
+                        .cornerRadius(15)
                     }
                 }
                 .padding()
             }
             
-            // Quick Questions (only show when no conversation yet)
+            // Quick Questions
             if conversationHistory.isEmpty && !aiService.isGeneratingResponse {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack {
@@ -1803,10 +4579,10 @@ struct PatientSimulationView: View {
                 }
             }
             
-            // Input Area
+            // Input Section
             VStack(spacing: 8) {
                 HStack {
-                    TextField(userProfile.currentLanguage == .portuguese ? "Faça uma pergunta ao paciente..." : "Ask the patient a question...", text: $currentQuestion)
+                    TextField(getTextFieldPlaceholder(), text: $currentQuestion)
                         .textFieldStyle(.roundedBorder)
                         .disabled(aiService.isGeneratingResponse)
                     
@@ -1821,14 +4597,11 @@ struct PatientSimulationView: View {
                     .disabled(currentQuestion.isEmpty || aiService.isGeneratingResponse)
                 }
                 
-                // Action buttons
                 HStack(spacing: 12) {
-                    Button(action: {
-                        showingTestEntry = true
-                    }) {
+                    Button(action: { showingTestEntry = true }) {
                         HStack {
                             Image(systemName: "testtube.2")
-                            Text(userProfile.currentLanguage == .portuguese ? "Solicitar Exame" : "Order Test")
+                            Text(getOrderTestText())
                         }
                         .font(.caption)
                         .padding(.horizontal, 12)
@@ -1839,62 +4612,43 @@ struct PatientSimulationView: View {
                     }
                     .disabled(aiService.isGeneratingResponse)
                     
-                    Button(action: {
-                        getHint()
-                    }) {
+                    Button(action: { showingDiagnosisEntry = true }) {
                         HStack {
-                            Image(systemName: "lightbulb")
-                            Text(userProfile.currentLanguage == .portuguese ? "Obter Dica" : "Get Hint")
+                            Image(systemName: "stethoscope")
+                            Text(getFinalDiagnosisText())
                         }
                         .font(.caption)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(Color.yellow.opacity(0.2))
-                        .foregroundColor(.orange)
+                        .background(Color.red.opacity(0.2))
+                        .foregroundColor(.red)
                         .cornerRadius(10)
                     }
-                    .disabled(aiService.isGeneratingResponse)
-                }
-                
-                Button(action: {
-                    showingDiagnosisEntry = true
-                }) {
-                    HStack {
-                        Image(systemName: "stethoscope")
-                        Text(userProfile.currentLanguage == .portuguese ? "Enviar Diagnóstico" : "Submit Diagnosis")
+                    .disabled(conversationHistory.isEmpty || aiService.isGeneratingResponse)
+                    
+                    Button(action: { showingStudyMaterials = true }) {
+                        HStack {
+                            Image(systemName: "book.fill")
+                            Text(getStudyMaterialsText())
+                        }
+                        .font(.caption)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.blue.opacity(0.2))
+                        .foregroundColor(.blue)
+                        .cornerRadius(10)
                     }
-                    .foregroundColor(.white)
-                    .padding()
-                    .background(aiService.isGeneratingResponse ? Color.gray : Color.green)
-                    .cornerRadius(10)
                 }
-                .disabled(aiService.isGeneratingResponse)
             }
             .padding()
-        }
-        .navigationTitle(userProfile.currentLanguage == .portuguese ? "Entrevista com Paciente" : "Patient Interview")
-        .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            sessionStartTime = Date()
-            // Check if API key is configured when view appears
-            if !APIKeyManager.shared.isAPIKeyConfigured {
-                showingAPIKeySetup = true
-            }
         }
         .onDisappear {
             let sessionTime = Date().timeIntervalSince(sessionStartTime)
             userProfile.addStudyTime(sessionTime)
-        }
-        .alert("API Key Required", isPresented: $showingAPIKeySetup) {
-            Button("Setup API Key") {
-                showingAPIKeySetup = true
+            
+            if userProfile.profile.currentSessionData != nil {
+                userProfile.abandonSession()
             }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("Please configure your Claude API key to use AI features.")
-        }
-        .sheet(isPresented: $showingAPIKeySetup) {
-            APIKeySetupView()
         }
         .sheet(isPresented: $showingDiagnosisEntry) {
             DiagnosisEntryView(
@@ -1921,10 +4675,9 @@ struct PatientSimulationView: View {
         .sheet(isPresented: $showingResults) {
             if let result = diagnosisResult {
                 DiagnosisResultView(
-                    result: result,
-                    correctDisease: disease,
+                    result: result, 
                     language: userProfile.currentLanguage,
-                    onShowStudyMaterials: {
+                    onDismiss: {
                         showingResults = false
                         showingStudyMaterials = true
                     }
@@ -1937,60 +4690,85 @@ struct PatientSimulationView: View {
                 language: userProfile.currentLanguage
             )
         }
+        .sheet(isPresented: $showingPersonalityDetails) {
+            if let patient = patientCase {
+                PersonalityDetailsView(
+                    personality: patient.personality,
+                    language: userProfile.currentLanguage
+                )
+            }
+        }
+        .onAppear {
+            if let patientCase = patientCase {
+                userProfile.startNewSession(patientCase: patientCase)
+            }
+        }
     }
     
     private func getQuickQuestions() -> [String] {
-        userProfile.currentLanguage == .portuguese ? [
-            "Como você está se sentindo?",
-            "Quando isso começou?",
-            "Pode descrever os sintomas?"
+        return self.userProfile.currentLanguage == .portuguese ? [
+            "Como você se sente?",
+            "Onde dói?", 
+            "Quando começou?",
+            "Pode descrever seus sintomas?"
         ] : [
             "How are you feeling?",
+            "Where does it hurt?",
             "When did this start?",
             "Can you describe your symptoms?"
         ]
     }
     
     private func askQuestion() {
-        guard !currentQuestion.isEmpty && !aiService.isGeneratingResponse,
-              let patient = patientCase else { return }
+        guard !self.currentQuestion.isEmpty && !self.aiService.isGeneratingResponse,
+              let patient = self.patientCase else { return }
         
-        let question = currentQuestion
-        currentQuestion = ""
+        let question = self.currentQuestion
+        self.currentQuestion = ""
         
         Task {
-            let response = await aiService.generatePatientResponse(
+            let response = await self.aiService.generatePatientResponse(
                 question: question,
                 patientCase: patient,
-                conversationHistory: conversationHistory,
-                language: userProfile.currentLanguage
+                conversationHistory: self.conversationHistory,
+                language: self.userProfile.currentLanguage
             )
             
             await MainActor.run {
-                conversationHistory.append(ConversationTurn(
+                self.conversationHistory.append(ConversationTurn(
                     question: question,
                     response: response,
                     timestamp: Date(),
                     isTest: false
                 ))
+                
+                // Update session progress
+                let questionsAsked = self.conversationHistory.filter { !$0.isTest }.count
+                let sessionTime = Date().timeIntervalSince(self.sessionStartTime)
+                self.userProfile.updateSessionProgress(
+                    questionsAsked: questionsAsked,
+                    hintsUsed: self.hintsUsed,
+                    testsOrdered: self.testsOrdered,
+                    responseTime: sessionTime
+                )
             }
         }
     }
     
     private func orderTest(_ test: String) {
-        guard let patient = patientCase else { return }
+        guard let patient = self.patientCase else { return }
         
-        testsOrdered += 1
+        self.testsOrdered += 1
         
         Task {
-            let response = await aiService.generateTestResult(
+            let response = await self.aiService.generateTestResult(
                 testRequest: test,
                 patientCase: patient,
-                language: userProfile.currentLanguage
+                language: self.userProfile.currentLanguage
             )
             
             await MainActor.run {
-                conversationHistory.append(ConversationTurn(
+                self.conversationHistory.append(ConversationTurn(
                     question: "Test ordered: \(test)",
                     response: response,
                     timestamp: Date(),
@@ -2001,20 +4779,20 @@ struct PatientSimulationView: View {
     }
     
     private func getHint() {
-        guard let patient = patientCase else { return }
+        guard let patient = self.patientCase else { return }
         
-        hintsUsed += 1
+        self.hintsUsed += 1
         
         Task {
-            let hint = await aiService.generateHint(
+            let hint = await self.aiService.generateHint(
                 patientCase: patient,
-                conversationHistory: conversationHistory,
-                language: userProfile.currentLanguage
+                conversationHistory: self.conversationHistory,
+                language: self.userProfile.currentLanguage
             )
             
             await MainActor.run {
-                let hintQuestion = userProfile.currentLanguage == .portuguese ? "Solicitou uma dica" : "Requested a hint"
-                conversationHistory.append(ConversationTurn(
+                let hintQuestion = self.userProfile.currentLanguage == .portuguese ? "Solicitou uma dica" : "Requested a hint"
+                self.conversationHistory.append(ConversationTurn(
                     question: hintQuestion,
                     response: "💡 \(hint)",
                     timestamp: Date(),
@@ -2025,39 +4803,104 @@ struct PatientSimulationView: View {
     }
     
     private func checkDiagnosis(_ diagnosis: String) {
-        guard let patient = patientCase else { return }
+        guard let patient = self.patientCase else { return }
         
         let isCorrect = isDiagnosisCorrect(diagnosis)
         
-        diagnosisResult = DiagnosisResult(
+        // Simplify complex ternary expression to avoid type-checking timeout
+        let feedbackMessage: String
+        if isCorrect {
+            feedbackMessage = self.userProfile.currentLanguage == .portuguese ? 
+                "Diagnóstico correto! Bem feito." : 
+                "Correct diagnosis! Well done."
+        } else {
+            let correctCondition = patient.disease.getDisplayName(self.userProfile.currentLanguage)
+            feedbackMessage = self.userProfile.currentLanguage == .portuguese ? 
+                "Diagnóstico incorreto. A condição correta é: \(correctCondition)" : 
+                "Incorrect diagnosis. The correct condition is: \(correctCondition)"
+        }
+            
+        self.diagnosisResult = DiagnosisResult(
             userDiagnosis: diagnosis,
             isCorrect: isCorrect,
-            conversationTurns: conversationHistory.filter { !$0.isTest }.count,
+            conversationTurns: self.conversationHistory.filter { !$0.isTest }.count,
             patientName: patient.demographics.name,
-            hintsUsed: hintsUsed,
-            testsOrdered: testsOrdered
+            hintsUsed: self.hintsUsed,
+            testsOrdered: self.testsOrdered,
+            feedback: feedbackMessage
         )
         
-        userProfile.recordDiagnosis(
-            disease: disease,
+        self.userProfile.recordDiagnosis(
+            disease: self.disease,
             isCorrect: isCorrect,
-            questionCount: conversationHistory.filter { !$0.isTest }.count,
-            hintsUsed: hintsUsed,
-            testsOrdered: testsOrdered
+            questionCount: self.conversationHistory.filter { !$0.isTest }.count,
+            hintsUsed: self.hintsUsed,
+            testsOrdered: self.testsOrdered
         )
         
-        showingResults = true
+        // Enhanced session tracking: Complete session with detailed analytics
+        let sessionTime = Date().timeIntervalSince(self.sessionStartTime)
+        let questionsAsked = self.conversationHistory.filter { !$0.isTest }.count
+        let confidenceScore = isCorrect ? 0.9 : 0.3 // Simple confidence scoring
+        
+        self.userProfile.completeSession(
+            finalDiagnosis: diagnosis,
+            isCorrect: isCorrect,
+            confidenceScore: confidenceScore
+        )
+        
+        self.showingResults = true
     }
     
     private func isDiagnosisCorrect(_ diagnosis: String) -> Bool {
         let diagnosisLower = diagnosis.lowercased()
-        let conditionNameLower = disease.nameEnglish.lowercased()
-        let conditionPortugueseLower = disease.namePortuguese.lowercased()
+        let conditionNameLower = self.disease.nameEnglish.lowercased()
+        let conditionPortugueseLower = self.disease.namePortuguese.lowercased()
         
         return diagnosisLower.contains(conditionNameLower) ||
                conditionNameLower.contains(diagnosisLower) ||
                diagnosisLower.contains(conditionPortugueseLower) ||
                conditionPortugueseLower.contains(diagnosisLower)
+    }
+    
+    private func getPatientAgeGenderText(patient: PatientCase) -> String {
+        let ageText = self.userProfile.currentLanguage == .portuguese ? "anos" : "years old"
+        let genderText = translateGender(patient.demographics.gender, to: self.userProfile.currentLanguage)
+        return "\(patient.demographics.age) \(ageText), \(genderText)"
+    }
+    
+    private func getChiefComplaints(from patient: PatientCase) -> [Symptom] {
+        return patient.presentingSymptoms.filter { $0.isChiefComplaint }
+    }
+    
+    private func getPersonalityDisplayName(for patient: PatientCase) -> String {
+        return patient.personality.type.displayName(language: self.userProfile.currentLanguage)
+    }
+    
+    private func getChiefComplaintTitle() -> String {
+        return self.userProfile.currentLanguage == .portuguese ? "Queixa Principal:" : "Chief Complaint:"
+    }
+    
+    private func getProcessingText() -> String {
+        return self.userProfile.currentLanguage == .portuguese ? "Processando..." : "Processing..."
+    }
+    
+    private func getTextFieldPlaceholder() -> String {
+        return self.userProfile.currentLanguage == .portuguese ? 
+            "Faça uma pergunta ao paciente..." : 
+            "Ask the patient a question..."
+    }
+    
+    private func getOrderTestText() -> String {
+        return self.userProfile.currentLanguage == .portuguese ? "Solicitar Exame" : "Order Test"
+    }
+    
+    private func getFinalDiagnosisText() -> String {
+        return self.userProfile.currentLanguage == .portuguese ? "Diagnóstico Final" : "Final Diagnosis"
+    }
+    
+    private func getStudyMaterialsText() -> String {
+        return self.userProfile.currentLanguage == .portuguese ? "Material de Estudo" : "Study Materials"
     }
 }
 
@@ -2067,41 +4910,36 @@ struct ConversationBubbleView: View {
     let language: AppLanguage
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Question/Test
+        VStack(alignment: .leading, spacing: 4) {
             HStack {
+                Text(getQuestionTypeLabel())
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                 Spacer()
-                VStack(alignment: .trailing) {
-                    Text(turn.question)
-                        .padding()
-                        .background(turn.isTest ? Color.purple : Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(15)
-                    
-                    Text(turn.isTest ?
-                         (language == .portuguese ? "Exame" : "Test") :
-                         (language == .portuguese ? "Você" : "You"))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                Text(turn.timestamp, style: .time)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
             
-            // Response
-            HStack {
-                VStack(alignment: .leading) {
-                    Text(turn.response)
-                        .padding()
-                        .background(turn.isTest ? Color.purple.opacity(0.2) : Color.gray.opacity(0.2))
-                        .cornerRadius(15)
-                    
-                    Text(turn.isTest ?
-                         (language == .portuguese ? "Resultado" : "Result") :
-                         (language == .portuguese ? "Paciente" : "Patient"))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
-            }
+            Text(turn.question)
+                .font(.body)
+                .padding(.bottom, 4)
+            
+            Text(turn.response)
+                .font(.body)
+                .foregroundColor(.blue)
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(8)
+        }
+        .padding(.vertical, 4)
+    }
+    
+    private func getQuestionTypeLabel() -> String {
+        if turn.isTest {
+            return language == .portuguese ? "Teste" : "Test"
+        } else {
+            return language == .portuguese ? "Pergunta" : "Question"
         }
     }
 }
@@ -2120,32 +4958,30 @@ struct DiagnosisEntryView: View {
                 .bold()
                 .padding(.top)
             
-            TextField(language == .portuguese ? "Digite seu diagnóstico..." : "Enter your diagnosis...", text: $localDiagnosis)
-                .textFieldStyle(.roundedBorder)
-                .padding(.horizontal)
+            TextField(
+                language == .portuguese ? "Digite o diagnóstico..." : "Enter diagnosis...",
+                text: $localDiagnosis
+            )
+            .textFieldStyle(RoundedBorderTextFieldStyle())
+            .padding(.horizontal)
             
-            HStack {
+            HStack(spacing: 20) {
                 Button(language == .portuguese ? "Cancelar" : "Cancel") {
                     dismiss()
                 }
-                .padding()
+                .foregroundColor(.red)
                 
-                Spacer()
-                
-                Button(language == .portuguese ? "Enviar" : "Submit") {
+                Button(language == .portuguese ? "Submeter" : "Submit") {
+                    userDiagnosis = localDiagnosis
                     onSubmit(localDiagnosis)
+                    dismiss()
                 }
-                .padding()
-                .background(localDiagnosis.isEmpty ? Color.gray : Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(10)
+                .foregroundColor(.blue)
                 .disabled(localDiagnosis.isEmpty)
             }
-            .padding(.horizontal)
-            
-            Spacer()
+            .padding(.bottom)
         }
-        .padding()
+        .presentationDetents([.medium])
     }
 }
 
@@ -2158,197 +4994,88 @@ struct TestEntryView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            Text(language == .portuguese ? "Que exame você gostaria de solicitar?" : "What test would you like to order?")
+            Text(language == .portuguese ? "Que teste você gostaria de solicitar?" : "What test would you like to order?")
                 .font(.title2)
                 .bold()
                 .padding(.top)
             
-            TextField(language == .portuguese ? "Digite o exame..." : "Enter test...", text: $localTest)
-                .textFieldStyle(.roundedBorder)
-                .padding(.horizontal)
+            TextField(
+                language == .portuguese ? "Digite o teste..." : "Enter test...",
+                text: $localTest
+            )
+            .textFieldStyle(RoundedBorderTextFieldStyle())
+            .padding(.horizontal)
             
-            // Quick test buttons
-            VStack(spacing: 8) {
-                Text(language == .portuguese ? "Exames Comuns:" : "Common Tests:")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))]) {
-                    ForEach(getCommonTests(), id: \.self) { test in
-                        Button(test) {
-                            localTest = test
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.purple.opacity(0.2))
-                        .foregroundColor(.purple)
-                        .cornerRadius(8)
-                        .font(.caption)
-                    }
-                }
-            }
-            .padding()
-            
-            HStack {
+            HStack(spacing: 20) {
                 Button(language == .portuguese ? "Cancelar" : "Cancel") {
                     dismiss()
                 }
-                .padding()
+                .foregroundColor(.red)
                 
-                Spacer()
-                
-                Button(language == .portuguese ? "Enviar" : "Submit") {
+                Button(language == .portuguese ? "Solicitar" : "Order") {
+                    testRequest = localTest
                     onSubmit(localTest)
-                }
-                .padding()
-                .background(localTest.isEmpty ? Color.gray : Color.purple)
-                .foregroundColor(.white)
-                .cornerRadius(10)
-                .disabled(localTest.isEmpty)
-            }
-            .padding(.horizontal)
-            
-            Spacer()
-        }
-        .padding()
-    }
-    
-    private func getCommonTests() -> [String] {
-        language == .portuguese ? [
-            "Pressão arterial",
-            "Temperatura",
-            "Reflexos",
-            "Ausculta pulmonar",
-            "Palpação abdominal",
-            "Exame neurológico"
-        ] : [
-            "Blood pressure",
-            "Temperature",
-            "Reflexes",
-            "Lung auscultation",
-            "Abdominal palpation",
-            "Neurological exam"
-        ]
-    }
-}
-
-struct DiagnosisResultView: View {
-    let result: DiagnosisResult
-    let correctDisease: Disease
-    let language: AppLanguage
-    let onShowStudyMaterials: () -> Void
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        VStack(spacing: 24) {
-            // Result
-            VStack(spacing: 16) {
-                Image(systemName: result.isCorrect ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .font(.system(size: 60))
-                    .foregroundColor(result.isCorrect ? .green : .red)
-                
-                Text(result.isCorrect ?
-                     (language == .portuguese ? "Correto!" : "Correct!") :
-                     (language == .portuguese ? "Incorreto" : "Incorrect"))
-                    .font(.title)
-                    .bold()
-                    .foregroundColor(result.isCorrect ? .green : .red)
-            }
-            
-            // Your Diagnosis
-            VStack(alignment: .leading, spacing: 8) {
-                Text(language == .portuguese ? "Seu Diagnóstico:" : "Your Diagnosis:")
-                    .font(.headline)
-                Text(result.userDiagnosis)
-                    .padding()
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(8)
-            }
-            
-            // Correct Answer
-            VStack(alignment: .leading, spacing: 8) {
-                Text(language == .portuguese ? "Resposta Correta:" : "Correct Answer:")
-                    .font(.headline)
-                Text(correctDisease.getDisplayName(language))
-                    .padding()
-                    .background(Color.green.opacity(0.1))
-                    .cornerRadius(8)
-            }
-            
-            // Performance Stats
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Performance")
-                    .font(.headline)
-                
-                HStack {
-                    VStack {
-                        Text("\(result.conversationTurns)")
-                            .font(.title2)
-                            .bold()
-                        Text("Questions")
-                            .font(.caption)
-                    }
-                    
-                    Spacer()
-                    
-                    VStack {
-                        Text("\(result.testsOrdered)")
-                            .font(.title2)
-                            .bold()
-                        Text("Tests")
-                            .font(.caption)
-                    }
-                    
-                    Spacer()
-                    
-                    VStack {
-                        Text("\(result.hintsUsed)")
-                            .font(.title2)
-                            .bold()
-                        Text("Hints")
-                            .font(.caption)
-                    }
-                }
-            }
-            .padding()
-            .background(Color.gray.opacity(0.1))
-            .cornerRadius(10)
-            
-            // Action Buttons
-            VStack(spacing: 12) {
-                if !result.isCorrect {
-                    Button("Continue Questions") {
-                        dismiss()
-                    }
-                    .padding()
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-                }
-                
-                Button("Study Materials") {
-                    onShowStudyMaterials()
-                }
-                .padding()
-                .background(Color.orange)
-                .foregroundColor(.white)
-                .cornerRadius(10)
-                
-                Button(language == .portuguese ? "Concluído" : "Done") {
                     dismiss()
                 }
-                .padding()
-                .background(Color.gray)
-                .foregroundColor(.white)
-                .cornerRadius(10)
+                .foregroundColor(.blue)
+                .disabled(localTest.isEmpty)
             }
+            .padding(.bottom)
+        }
+        .presentationDetents([.medium])
+    }
+}
+
+struct VoiceInputButton: View {
+    @Binding var text: String
+    let language: AppLanguage
+    
+    var body: some View {
+        Button(action: {
+            // Voice input implementation would go here
+        }) {
+            Image(systemName: "mic.fill")
+                .font(.title2)
+                .foregroundColor(.white)
+                .frame(width: 44, height: 44)
+                .background(Color.red)
+                .clipShape(Circle())
+        }
+    }
+}
+
+// MARK: - Diagnosis Result View
+struct DiagnosisResultView: View {
+    let result: DiagnosisResult
+    let language: AppLanguage
+    let onDismiss: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Text(result.isCorrect ? 
+                 (language == .portuguese ? "Correto!" : "Correct!") :
+                 (language == .portuguese ? "Incorreto" : "Incorrect"))
+                .font(.title)
+                .foregroundColor(result.isCorrect ? .green : .red)
             
-            Spacer()
+            Text(result.feedback)
+                .font(.body)
+                .multilineTextAlignment(.center)
+                .padding()
+            
+            Button(language == .portuguese ? "Continuar" : "Continue") {
+                onDismiss()
+            }
+            .padding()
+            .background(Color.blue)
+            .foregroundColor(.white)
+            .cornerRadius(10)
         }
         .padding()
     }
 }
 
+// MARK: - Study Materials View
 struct StudyMaterialsView: View {
     let disease: Disease
     let language: AppLanguage
@@ -2357,102 +5084,134 @@ struct StudyMaterialsView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Condition Name
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(disease.getDisplayName(language))
-                            .font(.largeTitle)
-                            .bold()
-                        
-                        Text(disease.category)
-                            .font(.subheadline)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 4)
-                            .background(Color.blue.opacity(0.2))
-                            .foregroundColor(.blue)
-                            .cornerRadius(8)
-                    }
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(disease.getDisplayName(language))
+                        .font(.title)
+                        .bold()
                     
-                    // Description
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Description:")
-                            .font(.headline)
-                        
-                        Text(disease.getDescription(language))
-                            .font(.body)
-                            .padding()
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(10)
-                    }
+                    Text(disease.getDescription(language))
+                        .font(.body)
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(10)
                     
-                    // Symptoms
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Symptoms:")
-                            .font(.headline)
-                        
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 200))], spacing: 8) {
-                            ForEach(disease.symptoms, id: \.id) { symptom in
-                                Text("• \(symptom.getText(language))")
-                                    .font(.body)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(Color.orange.opacity(0.2))
-                                    .cornerRadius(8)
-                            }
-                        }
-                    }
-                    
-                    // Physical Exam Findings
-                    if !disease.physicalFindings.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(language == .portuguese ? "Achados do Exame Físico:" : "Physical Exam Findings:")
-                                .font(.headline)
-                            
-                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 200))], spacing: 8) {
-                                ForEach(disease.physicalFindings, id: \.id) { finding in
-                                    Text("• \(finding.getText(language))")
-                                        .font(.body)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 6)
-                                        .background(Color.purple.opacity(0.2))
-                                        .cornerRadius(8)
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Lab Results
-                    if !disease.labResults.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(language == .portuguese ? "Resultados Laboratoriais:" : "Laboratory Results:")
-                                .font(.headline)
-                            
-                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 200))], spacing: 8) {
-                                ForEach(disease.labResults, id: \.id) { result in
-                                    Text("• \(result.getText(language))")
-                                        .font(.body)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 6)
-                                        .background(Color.green.opacity(0.2))
-                                        .cornerRadius(8)
-                                }
-                            }
-                        }
-                    }
-                    
-                    Spacer(minLength: 50)
+                    // Add more study material content here
+                    Text(language == .portuguese ? "Material de estudo para esta condição..." : "Study material for this condition...")
+                        .font(.body)
+                        .foregroundColor(.secondary)
                 }
                 .padding()
             }
-            .navigationTitle("Study Materials")
+            .navigationTitle(language == .portuguese ? "Material de Estudo" : "Study Materials")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(language == .portuguese ? "Concluído" : "Done") {
+                    Button(language == .portuguese ? "Fechar" : "Close") {
                         dismiss()
                     }
                 }
             }
         }
+    }
+}
+
+// MARK: - Personality Details View
+struct PersonalityDetailsView: View {
+    let personality: PatientPersonality
+    let language: AppLanguage
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(language == .portuguese ? "Tipo de Personalidade" : "Personality Type")
+                            .font(.headline)
+                        Text(personality.type.displayName(language: language))
+                            .font(.title2)
+                            .foregroundColor(.purple)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        PersonalityTraitRow(
+                            title: language == .portuguese ? "Cooperação" : "Cooperation",
+                            value: personality.cooperationLevel,
+                            color: .blue
+                        )
+                        
+                        PersonalityTraitRow(
+                            title: language == .portuguese ? "Tolerância à Dor" : "Pain Tolerance", 
+                            value: personality.painTolerance,
+                            color: .orange
+                        )
+                        
+                        PersonalityTraitRow(
+                            title: language == .portuguese ? "Nível de Ansiedade" : "Anxiety Level",
+                            value: personality.anxietyLevel,
+                            color: .red
+                        )
+                        
+                        PersonalityTraitRow(
+                            title: language == .portuguese ? "Confiança" : "Trust Level",
+                            value: personality.trustLevel,
+                            color: .green
+                        )
+                        
+                        PersonalityTraitRow(
+                            title: language == .portuguese ? "Clareza da Memória" : "Memory Clarity",
+                            value: personality.memoryClarity,
+                            color: .purple
+                        )
+                    }
+                }
+                .padding()
+            }
+            .navigationTitle(language == .portuguese ? "Detalhes da Personalidade" : "Personality Details")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(language == .portuguese ? "Fechar" : "Close") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Supporting Views for Personality Details
+struct PersonalityTraitRow: View {
+    let title: String
+    let value: Double
+    let color: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(title)
+                    .font(.subheadline)
+                Spacer()
+                Text("\(Int(value * 100))%")
+                    .font(.subheadline)
+                    .foregroundColor(color)
+            }
+            
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    Rectangle()
+                        .fill(Color(.systemGray5))
+                        .frame(height: 8)
+                        .cornerRadius(4)
+                    
+                    Rectangle()
+                        .fill(color)
+                        .frame(width: geometry.size.width * value, height: 8)
+                        .cornerRadius(4)
+                }
+            }
+            .frame(height: 8)
+        }
+        .padding(.vertical, 4)
     }
 }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct APIKeySettingsView: View {
-    @StateObject private var apiKeyManager = APIKeyManager.shared
+    @ObservedObject private var apiKeyManager = APIKeyManager.shared
     @State private var showingAPIKeySetup = false
     @State private var showingDeleteAlert = false
     @State private var maskedKey = ""
@@ -58,8 +58,17 @@ struct APIKeySettingsView: View {
                     }
                     .foregroundColor(.red)
                 } else {
-                    Button("Add API Key") {
+                    Button(action: {
+                        print("Add API Key button tapped")
                         showingAPIKeySetup = true
+                    }) {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Add API Key")
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                        }
+                        .padding(.vertical, 8)
                     }
                     .foregroundColor(.blue)
                 }
@@ -86,8 +95,14 @@ struct APIKeySettingsView: View {
         }
         .navigationTitle("API Settings")
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                FeedbackButton(language: .english) // TODO: Get current language from environment
+            }
+        }
         .sheet(isPresented: $showingAPIKeySetup) {
             APIKeySetupView()
+                .environmentObject(UserProfileManager())
         }
         .alert("Remove API Key", isPresented: $showingDeleteAlert) {
             Button("Cancel", role: .cancel) { }
@@ -99,6 +114,8 @@ struct APIKeySettingsView: View {
         }
         .onAppear {
             loadMaskedKey()
+            print("API Settings View appeared")
+            print("API Key configured: \(apiKeyManager.isAPIKeyConfigured)")
         }
     }
     

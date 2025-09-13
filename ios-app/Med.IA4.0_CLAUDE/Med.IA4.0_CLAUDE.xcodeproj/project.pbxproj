@@ -7,8 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BF62A10C2E6DD65300C33B0D /* medical_conditions.sqlite in Resources */ = {isa = PBXBuildFile; fileRef = BF62A10B2E6DD65300C33B0D /* medical_conditions.sqlite */; };
+		BF62A1122E6DEB6000C33B0D /* FeedbackManager 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF62A1112E6DEB6000C33B0D /* FeedbackManager 2.swift */; };
 		BF9C39AB2E19174E0095DAE1 /* MedicalDatabase.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = BF9C39A92E19174E0095DAE1 /* MedicalDatabase.xcdatamodeld */; };
-		BF9C39AD2E1DC4BA0095DAE1 /* medical_conditions.sqlite in Resources */ = {isa = PBXBuildFile; fileRef = BF9C39AC2E1DC4BA0095DAE1 /* medical_conditions.sqlite */; };
 		BFF701502DF7906D00E81383 /* Med_IA4_0_CLAUDEApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFF7014F2DF7906D00E81383 /* Med_IA4_0_CLAUDEApp.swift */; };
 		BFF701542DF7906F00E81383 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BFF701532DF7906F00E81383 /* Assets.xcassets */; };
 		BFF701572DF7906F00E81383 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BFF701562DF7906F00E81383 /* Preview Assets.xcassets */; };
@@ -41,6 +42,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		BF62A10B2E6DD65300C33B0D /* medical_conditions.sqlite */ = {isa = PBXFileReference; lastKnownFileType = file; path = medical_conditions.sqlite; sourceTree = "<group>"; };
+		BF62A1112E6DEB6000C33B0D /* FeedbackManager 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FeedbackManager 2.swift"; sourceTree = "<group>"; };
 		BF9C39AA2E19174E0095DAE1 /* MedicalDatabase.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = MedicalDatabase.xcdatamodel; sourceTree = "<group>"; };
 		BF9C39AC2E1DC4BA0095DAE1 /* medical_conditions.sqlite */ = {isa = PBXFileReference; lastKnownFileType = file; path = medical_conditions.sqlite; sourceTree = "<group>"; };
 		BFF7014C2DF7906D00E81383 /* Med.IA4.0_CLAUDE.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Med.IA4.0_CLAUDE.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -88,6 +91,8 @@
 		BFF701432DF7906D00E81383 = {
 			isa = PBXGroup;
 			children = (
+				BF62A1112E6DEB6000C33B0D /* FeedbackManager 2.swift */,
+				BF62A10B2E6DD65300C33B0D /* medical_conditions.sqlite */,
 				BFFF30AE2E1DEB4700E9DF56 /* NetworkManager.swift */,
 				BFFF30AC2E1DE99900E9DF56 /* MainAppWrapper.swift */,
 				BFFF30A02E1DE73C00E9DF56 /* API Management */,
@@ -244,7 +249,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1520;
-				LastUpgradeCheck = 1520;
+				LastUpgradeCheck = 1640;
 				TargetAttributes = {
 					BFF7014B2DF7906D00E81383 = {
 						CreatedOnToolsVersion = 15.2;
@@ -285,8 +290,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				BFF701572DF7906F00E81383 /* Preview Assets.xcassets in Resources */,
+				BF62A10C2E6DD65300C33B0D /* medical_conditions.sqlite in Resources */,
 				BFF701542DF7906F00E81383 /* Assets.xcassets in Resources */,
-				BF9C39AD2E1DC4BA0095DAE1 /* medical_conditions.sqlite in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -316,6 +321,7 @@
 				BFFF30A92E1DE92D00E9DF56 /* APIKeySetupView.swift in Sources */,
 				BFFF30A52E1DE7D400E9DF56 /* APIKeyManager.swift in Sources */,
 				BFFF30AF2E1DEB4700E9DF56 /* NetworkManager.swift in Sources */,
+				BF62A1122E6DEB6000C33B0D /* FeedbackManager 2.swift in Sources */,
 				BFFF30A72E1DE8D500E9DF56 /* APIError.swift in Sources */,
 				BF9C39AB2E19174E0095DAE1 /* MedicalDatabase.xcdatamodeld in Sources */,
 				BFF701502DF7906D00E81383 /* Med_IA4_0_CLAUDEApp.swift in Sources */,
@@ -533,7 +539,6 @@
 		BFF701742DF7906F00E81383 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -552,7 +557,6 @@
 		BFF701752DF7906F00E81383 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -571,7 +575,6 @@
 		BFF701772DF7906F00E81383 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -588,7 +591,6 @@
 		BFF701782DF7906F00E81383 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;

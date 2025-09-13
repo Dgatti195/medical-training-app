@@ -27,7 +27,7 @@ class NetworkManager: ObservableObject {
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         
-        var messages: [[String: Any]] = [
+        let messages: [[String: Any]] = [
             ["role": "user", "content": message]
         ]
         
