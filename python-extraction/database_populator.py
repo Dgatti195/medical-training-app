@@ -93,7 +93,20 @@ class DatabasePopulator:
             FOREIGN KEY (disease_id) REFERENCES diseases(id) ON DELETE CASCADE
         )
         """)
-        
+
+        # Create treatments table
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS treatments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            disease_id INTEGER NOT NULL,
+            treatment_english TEXT NOT NULL,
+            treatment_portuguese TEXT NOT NULL,
+            is_primary_treatment BOOLEAN DEFAULT FALSE,
+            category TEXT NOT NULL,
+            FOREIGN KEY (disease_id) REFERENCES diseases(id) ON DELETE CASCADE
+        )
+        """)
+
         # Create indexes for better performance
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_diseases_category ON diseases(category)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_symptoms_disease_id ON symptoms(disease_id)")
@@ -101,6 +114,7 @@ class DatabasePopulator:
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_findings_disease_id ON physical_findings(disease_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_lab_disease_id ON lab_results(disease_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_hints_disease_id ON diagnostic_hints(disease_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_treatments_disease_id ON treatments(disease_id)")
         
         conn.commit()
         conn.close()
@@ -113,14 +127,15 @@ class DatabasePopulator:
         cursor = conn.cursor()
         
         # Delete in correct order due to foreign keys
+        cursor.execute("DELETE FROM treatments")
         cursor.execute("DELETE FROM diagnostic_hints")
         cursor.execute("DELETE FROM lab_results")
         cursor.execute("DELETE FROM physical_findings")
         cursor.execute("DELETE FROM symptoms")
         cursor.execute("DELETE FROM diseases")
-        
+
         # Reset auto-increment counters
-        cursor.execute("DELETE FROM sqlite_sequence WHERE name IN ('diseases', 'symptoms', 'physical_findings', 'lab_results', 'diagnostic_hints')")
+        cursor.execute("DELETE FROM sqlite_sequence WHERE name IN ('diseases', 'symptoms', 'physical_findings', 'lab_results', 'diagnostic_hints', 'treatments')")
         
         conn.commit()
         conn.close()
@@ -227,7 +242,21 @@ class DatabasePopulator:
                         hint.get('english', ''),
                         hint.get('portuguese', '')
                     ))
-                
+
+                # Insert treatments
+                treatments = condition.get('treatments', [])
+                for treatment in treatments:
+                    cursor.execute("""
+                    INSERT INTO treatments (disease_id, treatment_english, treatment_portuguese, is_primary_treatment, category)
+                    VALUES (?, ?, ?, ?, ?)
+                    """, (
+                        disease_id,
+                        treatment.get('english', ''),
+                        treatment.get('portuguese', ''),
+                        treatment.get('is_primary', False),
+                        treatment.get('category', 'medication')
+                    ))
+
                 successful_insertions += 1
                 if (i + 1) % 10 == 0:
                     logger.info(f"Processed {i + 1}/{len(conditions)} conditions")
@@ -276,7 +305,13 @@ class DatabasePopulator:
         
         cursor.execute("SELECT COUNT(*) FROM diagnostic_hints")
         stats['total_diagnostic_hints'] = cursor.fetchone()[0]
-        
+
+        cursor.execute("SELECT COUNT(*) FROM treatments")
+        stats['total_treatments'] = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(*) FROM treatments WHERE is_primary_treatment = 1")
+        stats['total_primary_treatments'] = cursor.fetchone()[0]
+
         # Average confidence
         cursor.execute("SELECT AVG(extraction_confidence) FROM diseases WHERE extraction_confidence > 0")
         avg_confidence = cursor.fetchone()[0]

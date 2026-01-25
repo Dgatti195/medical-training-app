@@ -34,7 +34,7 @@ class MedicalCondition:
     def __init__(self, name_english="", name_portuguese="", category="", severity="",
                  description_english="", description_portuguese="", symptoms=None,
                  physical_findings=None, lab_results=None, diagnostic_hints=None,
-                 source_pdf="", extraction_confidence=0.0):
+                 treatments=None, source_pdf="", extraction_confidence=0.0):
         self.name_english = name_english
         self.name_portuguese = name_portuguese
         self.category = category
@@ -45,9 +45,10 @@ class MedicalCondition:
         self.physical_findings = physical_findings or []
         self.lab_results = lab_results or []
         self.diagnostic_hints = diagnostic_hints or []
+        self.treatments = treatments or []
         self.source_pdf = source_pdf
         self.extraction_confidence = extraction_confidence
-    
+
     def to_dict(self):
         return {
             'name_english': self.name_english,
@@ -60,6 +61,7 @@ class MedicalCondition:
             'physical_findings': self.physical_findings,
             'lab_results': self.lab_results,
             'diagnostic_hints': self.diagnostic_hints,
+            'treatments': self.treatments,
             'source_pdf': self.source_pdf,
             'extraction_confidence': self.extraction_confidence
         }
@@ -230,10 +232,28 @@ REQUIRED JSON FORMAT (ENGLISH ONLY - Portuguese will be added later):
     "physical_findings": ["2-4 physical exam findings in English"],
     "laboratory_results": ["2-4 lab/imaging findings in English"],
     "diagnostic_hints": ["2-4 clinical pearls or diagnostic clues in English"],
+    "treatments": [
+        {{
+            "treatment": "Specific treatment in English",
+            "category": "ONE of: medication, procedure, lifestyle, supportive",
+            "is_primary": true
+        }}
+    ],
     "confidence": 0.85
 }}
 
-IMPORTANT: Return ONLY English text. Portuguese translations will be added in a separate step.
+TREATMENT CATEGORIES:
+- medication: Drugs, antibiotics, antivirals, pain relievers, etc.
+- procedure: Surgery, intubation, dialysis, medical procedures
+- lifestyle: Rest, hydration, diet modifications, exercise
+- supportive: Oxygen therapy, monitoring, palliative care
+
+IMPORTANT TREATMENT RULES:
+- Extract 2-5 treatments per condition
+- Mark first-line/definitive treatments as "is_primary": true
+- Mark supportive/adjunct treatments as "is_primary": false
+- Be specific (e.g., "Broad-spectrum antibiotics" not just "antibiotics")
+- Return ONLY English text. Portuguese translations will be added in a separate step.
 
 TEXT TO ANALYZE:
 {chunk['text'][:2500]}
@@ -285,6 +305,14 @@ KEEP ALL EXISTING ENGLISH FIELDS. ADD these Portuguese fields:
 - physical_findings_portuguese (array)
 - laboratory_results_portuguese (array)
 - diagnostic_hints_portuguese (array)
+- treatments_portuguese (array of objects with "treatment" field translated)
+
+For treatments, keep the same structure but translate the "treatment" field:
+{{
+    "treatment": "Portuguese translation",
+    "category": "same as English (medication/procedure/lifestyle/supportive)",
+    "is_primary": same boolean value
+}}
 
 INPUT: {json.dumps(medical_data, indent=2)}
 
@@ -315,9 +343,10 @@ OUTPUT: Same structure with Portuguese fields ADDED (not replaced):
                 'additional_symptoms_portuguese',
                 'physical_findings_portuguese',
                 'laboratory_results_portuguese',
-                'diagnostic_hints_portuguese'
+                'diagnostic_hints_portuguese',
+                'treatments_portuguese'
             ]
-            
+
             for field in portuguese_fields:
                 if field in translated_data:
                     merged_data[field] = translated_data[field]
@@ -405,7 +434,32 @@ OUTPUT: Same structure with Portuguese fields ADDED (not replaced):
                 'portuguese': additional_symptoms_pt[i] if i < len(additional_symptoms_pt) else symptom,
                 'is_chief': False
             })
-        
+
+        # Process treatments
+        treatments = []
+        treatments_en = data.get('treatments', [])
+        treatments_pt = data.get('treatments_portuguese', [])
+
+        for i, treatment_en in enumerate(treatments_en):
+            treatment_pt = treatments_pt[i] if i < len(treatments_pt) else treatment_en
+
+            # Handle both dict and string formats
+            if isinstance(treatment_en, dict):
+                treatments.append({
+                    'english': treatment_en.get('treatment', ''),
+                    'portuguese': treatment_pt.get('treatment', treatment_en.get('treatment', '')) if isinstance(treatment_pt, dict) else treatment_en.get('treatment', ''),
+                    'category': treatment_en.get('category', 'medication'),
+                    'is_primary': treatment_en.get('is_primary', False)
+                })
+            else:
+                # If it's just a string, assume it's medication and primary
+                treatments.append({
+                    'english': treatment_en,
+                    'portuguese': treatment_pt if isinstance(treatment_pt, str) else treatment_en,
+                    'category': 'medication',
+                    'is_primary': True
+                })
+
         return MedicalCondition(
             name_english=data.get('disease_name', 'Unknown Condition'),
             name_portuguese=data.get('disease_name_portuguese', data.get('disease_name', 'Condição Desconhecida')),
@@ -417,6 +471,7 @@ OUTPUT: Same structure with Portuguese fields ADDED (not replaced):
             physical_findings=safe_get_list('physical_findings', 'physical_findings_portuguese'),
             lab_results=safe_get_list('laboratory_results', 'laboratory_results_portuguese'),
             diagnostic_hints=safe_get_list('diagnostic_hints', 'diagnostic_hints_portuguese'),
+            treatments=treatments,
             source_pdf=source_pdf,
             extraction_confidence=data.get('confidence', 0.0)
         )
