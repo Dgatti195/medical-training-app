@@ -25,7 +25,7 @@ final class Med_IA4_0_CLAUDEUITestsLaunchTests: XCTestCase {
         // such as logging into a test account or navigating somewhere in the app
 
         let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = "Launch Screen"
+        attachment.name = "Tela de Lançamento"
         attachment.lifetime = .keepAlways
         add(attachment)
     }

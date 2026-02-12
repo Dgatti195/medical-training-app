@@ -5,6 +5,7 @@ struct APIKeySettingsView: View {
     @State private var showingAPIKeySetup = false
     @State private var showingDeleteAlert = false
     @State private var maskedKey = ""
+    let language: AppLanguage
     
     var body: some View {
         List {
@@ -93,11 +94,11 @@ struct APIKeySettingsView: View {
                 Text("All API requests are made directly from your device to Claude's servers. Your conversations and data never pass through our servers.")
             }
         }
-        .navigationTitle("API Settings")
+        .navigationTitle(language == .portuguese ? "Configurações da API" : "API Settings")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                FeedbackButton(language: .english) // TODO: Get current language from environment
+                FeedbackButton(language: language)
             }
         }
         .sheet(isPresented: $showingAPIKeySetup) {

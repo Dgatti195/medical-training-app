@@ -7,9 +7,21 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BF5167632EB00EA70086AA62 /* CleanAnalyticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF5167622EB00EA70086AA62 /* CleanAnalyticsView.swift */; };
 		BF62A10C2E6DD65300C33B0D /* medical_conditions.sqlite in Resources */ = {isa = PBXBuildFile; fileRef = BF62A10B2E6DD65300C33B0D /* medical_conditions.sqlite */; };
 		BF62A1122E6DEB6000C33B0D /* FeedbackManager 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF62A1112E6DEB6000C33B0D /* FeedbackManager 2.swift */; };
 		BF9C39AB2E19174E0095DAE1 /* MedicalDatabase.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = BF9C39A92E19174E0095DAE1 /* MedicalDatabase.xcdatamodeld */; };
+		BFD067392EB006D7008E1363 /* StudyToolsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFD067342EB006D7008E1363 /* StudyToolsManager.swift */; };
+		BFD0673B2EB006D7008E1363 /* ProgressTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFD067302EB006D7008E1363 /* ProgressTracker.swift */; };
+		BFD0673C2EB006D7008E1363 /* SocialFeaturesManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFD067322EB006D7008E1363 /* SocialFeaturesManager.swift */; };
+		BFD0673D2EB006D7008E1363 /* UXEnhancementManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFD067382EB006D7008E1363 /* UXEnhancementManager.swift */; };
+		BFD0673E2EB006D7008E1363 /* SmartNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFD067312EB006D7008E1363 /* SmartNotificationManager.swift */; };
+		BFD0673F2EB006D7008E1363 /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFD067362EB006D7008E1363 /* ThemeManager.swift */; };
+		BFD067402EB006D7008E1363 /* ProgressDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFD0672F2EB006D7008E1363 /* ProgressDashboardView.swift */; };
+		BFD067412EB006D7008E1363 /* SocialHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFD067332EB006D7008E1363 /* SocialHubView.swift */; };
+		BFD067422EB006D7008E1363 /* NotificationSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFD0672E2EB006D7008E1363 /* NotificationSettingsView.swift */; };
+		BFD067432EB006D7008E1363 /* StudyToolsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFD067352EB006D7008E1363 /* StudyToolsView.swift */; };
+		BFD067442EB006D7008E1363 /* ThemeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFD067372EB006D7008E1363 /* ThemeSettingsView.swift */; };
 		BFF701502DF7906D00E81383 /* Med_IA4_0_CLAUDEApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFF7014F2DF7906D00E81383 /* Med_IA4_0_CLAUDEApp.swift */; };
 		BFF701542DF7906F00E81383 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BFF701532DF7906F00E81383 /* Assets.xcassets */; };
 		BFF701572DF7906F00E81383 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BFF701562DF7906F00E81383 /* Preview Assets.xcassets */; };
@@ -42,10 +54,22 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		BF5167622EB00EA70086AA62 /* CleanAnalyticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanAnalyticsView.swift; sourceTree = "<group>"; };
 		BF62A10B2E6DD65300C33B0D /* medical_conditions.sqlite */ = {isa = PBXFileReference; lastKnownFileType = file; path = medical_conditions.sqlite; sourceTree = "<group>"; };
 		BF62A1112E6DEB6000C33B0D /* FeedbackManager 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FeedbackManager 2.swift"; sourceTree = "<group>"; };
 		BF9C39AA2E19174E0095DAE1 /* MedicalDatabase.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = MedicalDatabase.xcdatamodel; sourceTree = "<group>"; };
 		BF9C39AC2E1DC4BA0095DAE1 /* medical_conditions.sqlite */ = {isa = PBXFileReference; lastKnownFileType = file; path = medical_conditions.sqlite; sourceTree = "<group>"; };
+		BFD0672E2EB006D7008E1363 /* NotificationSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSettingsView.swift; sourceTree = "<group>"; };
+		BFD0672F2EB006D7008E1363 /* ProgressDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressDashboardView.swift; sourceTree = "<group>"; };
+		BFD067302EB006D7008E1363 /* ProgressTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressTracker.swift; sourceTree = "<group>"; };
+		BFD067312EB006D7008E1363 /* SmartNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmartNotificationManager.swift; sourceTree = "<group>"; };
+		BFD067322EB006D7008E1363 /* SocialFeaturesManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialFeaturesManager.swift; sourceTree = "<group>"; };
+		BFD067332EB006D7008E1363 /* SocialHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialHubView.swift; sourceTree = "<group>"; };
+		BFD067342EB006D7008E1363 /* StudyToolsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyToolsManager.swift; sourceTree = "<group>"; };
+		BFD067352EB006D7008E1363 /* StudyToolsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyToolsView.swift; sourceTree = "<group>"; };
+		BFD067362EB006D7008E1363 /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
+		BFD067372EB006D7008E1363 /* ThemeSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeSettingsView.swift; sourceTree = "<group>"; };
+		BFD067382EB006D7008E1363 /* UXEnhancementManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UXEnhancementManager.swift; sourceTree = "<group>"; };
 		BFF7014C2DF7906D00E81383 /* Med.IA4.0_CLAUDE.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Med.IA4.0_CLAUDE.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BFF7014F2DF7906D00E81383 /* Med_IA4_0_CLAUDEApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Med_IA4_0_CLAUDEApp.swift; sourceTree = "<group>"; };
 		BFF701532DF7906F00E81383 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -91,6 +115,18 @@
 		BFF701432DF7906D00E81383 = {
 			isa = PBXGroup;
 			children = (
+				BF5167622EB00EA70086AA62 /* CleanAnalyticsView.swift */,
+				BFD0672E2EB006D7008E1363 /* NotificationSettingsView.swift */,
+				BFD0672F2EB006D7008E1363 /* ProgressDashboardView.swift */,
+				BFD067302EB006D7008E1363 /* ProgressTracker.swift */,
+				BFD067312EB006D7008E1363 /* SmartNotificationManager.swift */,
+				BFD067322EB006D7008E1363 /* SocialFeaturesManager.swift */,
+				BFD067332EB006D7008E1363 /* SocialHubView.swift */,
+				BFD067342EB006D7008E1363 /* StudyToolsManager.swift */,
+				BFD067352EB006D7008E1363 /* StudyToolsView.swift */,
+				BFD067362EB006D7008E1363 /* ThemeManager.swift */,
+				BFD067372EB006D7008E1363 /* ThemeSettingsView.swift */,
+				BFD067382EB006D7008E1363 /* UXEnhancementManager.swift */,
 				BF62A1112E6DEB6000C33B0D /* FeedbackManager 2.swift */,
 				BF62A10B2E6DD65300C33B0D /* medical_conditions.sqlite */,
 				BFFF30AE2E1DEB4700E9DF56 /* NetworkManager.swift */,
@@ -322,6 +358,18 @@
 				BFFF30A52E1DE7D400E9DF56 /* APIKeyManager.swift in Sources */,
 				BFFF30AF2E1DEB4700E9DF56 /* NetworkManager.swift in Sources */,
 				BF62A1122E6DEB6000C33B0D /* FeedbackManager 2.swift in Sources */,
+				BFD067392EB006D7008E1363 /* StudyToolsManager.swift in Sources */,
+				BFD0673B2EB006D7008E1363 /* ProgressTracker.swift in Sources */,
+				BF5167632EB00EA70086AA62 /* CleanAnalyticsView.swift in Sources */,
+				BFD0673C2EB006D7008E1363 /* SocialFeaturesManager.swift in Sources */,
+				BFD0673D2EB006D7008E1363 /* UXEnhancementManager.swift in Sources */,
+				BFD0673E2EB006D7008E1363 /* SmartNotificationManager.swift in Sources */,
+				BFD0673F2EB006D7008E1363 /* ThemeManager.swift in Sources */,
+				BFD067402EB006D7008E1363 /* ProgressDashboardView.swift in Sources */,
+				BFD067412EB006D7008E1363 /* SocialHubView.swift in Sources */,
+				BFD067422EB006D7008E1363 /* NotificationSettingsView.swift in Sources */,
+				BFD067432EB006D7008E1363 /* StudyToolsView.swift in Sources */,
+				BFD067442EB006D7008E1363 /* ThemeSettingsView.swift in Sources */,
 				BFFF30A72E1DE8D500E9DF56 /* APIError.swift in Sources */,
 				BF9C39AB2E19174E0095DAE1 /* MedicalDatabase.xcdatamodeld in Sources */,
 				BFF701502DF7906D00E81383 /* Med_IA4_0_CLAUDEApp.swift in Sources */,
@@ -486,8 +534,9 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_ASSET_PATHS = "\"Med.IA4.0_CLAUDE/Preview Content\"";
+				DEVELOPMENT_TEAM = 29TS7RBM3T;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -499,8 +548,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "DOL.Med-IA4-0-CLAUDE";
+				MARKETING_VERSION = 2.2;
+				PRODUCT_BUNDLE_IDENTIFIER = "DOL.Med-IA4-0-CLAUDE2";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -514,8 +563,9 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_ASSET_PATHS = "\"Med.IA4.0_CLAUDE/Preview Content\"";
+				DEVELOPMENT_TEAM = 29TS7RBM3T;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -527,8 +577,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "DOL.Med-IA4-0-CLAUDE";
+				MARKETING_VERSION = 2.2;
+				PRODUCT_BUNDLE_IDENTIFIER = "DOL.Med-IA4-0-CLAUDE2";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;

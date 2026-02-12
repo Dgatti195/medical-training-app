@@ -214,21 +214,21 @@ struct APIKeyRequiredView: View {
                     .font(.system(size: 80))
                     .foregroundColor(.blue)
                 
-                Text("Welcome to Med.IA")  // Replace with your app name
+                Text(userProfile.currentLanguage == .portuguese ? "Bem-vindo ao Med.IA" : "Welcome to Med.IA")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                 
-                Text("AI-Powered Medical Training")
+                Text(userProfile.currentLanguage == .portuguese ? "Treinamento Médico com IA" : "AI-Powered Medical Training")
                     .font(.title2)
                     .foregroundColor(.secondary)
             }
             
             VStack(spacing: 12) {
-                Text("To get started, you'll need to configure your Claude API key")
+                Text(userProfile.currentLanguage == .portuguese ? "Para começar, você precisa configurar sua chave API do Claude" : "To get started, you'll need to configure your Claude API key")
                     .font(.body)
                     .multilineTextAlignment(.center)
                 
-                Text("This enables AI-powered patient interviews and medical training features")
+                Text(userProfile.currentLanguage == .portuguese ? "Isso habilita entrevistas com pacientes com IA e recursos de treinamento médico" : "This enables AI-powered patient interviews and medical training features")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -240,7 +240,7 @@ struct APIKeyRequiredView: View {
             Button(action: {
                 showingSetup = true
             }) {
-                Text("Setup API Key")
+                Text(userProfile.currentLanguage == .portuguese ? "Configurar Chave API" : "Setup API Key")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding()
@@ -266,7 +266,7 @@ struct SplashScreenView: View {
                 .font(.system(size: 80))
                 .foregroundColor(.blue)
             
-            Text("Med.IA")  // Your app name
+            Text("Med.IA")
                 .font(.largeTitle)
                 .fontWeight(.bold)
             

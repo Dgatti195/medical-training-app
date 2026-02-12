@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct CleanAnalyticsView: View {
+struct AnalyticsViewSimple: View {
     @EnvironmentObject var userProfile: UserProfileManager
     @StateObject private var progressTracker = ProgressTracker.shared
     @StateObject private var themeManager = ThemeManager.shared
@@ -18,31 +18,31 @@ struct CleanAnalyticsView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         Text(language == .portuguese ? "Métricas Principais" : "Key Metrics")
                             .font(.headline)
-                            .foregroundColor(.primary)
+                            .themedPrimaryText()
 
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
-                            StatCard(
+                            BasicCard(
                                 title: language == .portuguese ? "Sessões" : "Sessions",
                                 value: "\(progressTracker.totalSessionsCompleted)",
                                 icon: "list.bullet",
                                 color: .blue
                             )
 
-                            StatCard(
+                            SimpleCard(
                                 title: language == .portuguese ? "Precisão" : "Accuracy",
                                 value: String(format: "%.1f%%", progressTracker.averageAccuracy * 100),
                                 icon: "target",
                                 color: .green
                             )
 
-                            StatCard(
+                            SimpleCard(
                                 title: language == .portuguese ? "Tempo Total" : "Total Time",
                                 value: formatTime(progressTracker.totalStudyTime),
                                 icon: "clock",
                                 color: .orange
                             )
 
-                            StatCard(
+                            SimpleCard(
                                 title: language == .portuguese ? "Sequência" : "Streak",
                                 value: "\(progressTracker.currentStreak)",
                                 icon: "flame.fill",
@@ -51,45 +51,14 @@ struct CleanAnalyticsView: View {
                         }
                     }
                     .padding()
-                    .background(Color(.systemGray6))
+                    .themedSurface()
                     .cornerRadius(12)
-
-                    // Recent Activity
-                    if !progressTracker.dailyProgress.isEmpty {
-                        VStack(alignment: .leading, spacing: 16) {
-                            Text(language == .portuguese ? "Progresso Recente" : "Recent Progress")
-                                .font(.headline)
-                                .foregroundColor(.primary)
-
-                            ForEach(progressTracker.dailyProgress.prefix(5), id: \.date) { progress in
-                                HStack {
-                                    Text(formatDate(progress.date))
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-
-                                    Spacer()
-
-                                    Text("\(progress.sessionsCompleted)")
-                                        .font(.caption)
-                                        .foregroundColor(.primary)
-
-                                    Text(String(format: "%.0f%%", progress.averageAccuracy * 100))
-                                        .font(.caption)
-                                        .foregroundColor(progress.averageAccuracy > 0.8 ? .green : .orange)
-                                }
-                                .padding(.vertical, 2)
-                            }
-                        }
-                        .padding()
-                        .background(Color(.systemGray6))
-                        .cornerRadius(12)
-                    }
 
                     Spacer()
                 }
                 .padding()
             }
-            .background(Color(.systemBackground))
+            .themedBackground()
             .navigationTitle(language == .portuguese ? "Análises" : "Analytics")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -113,16 +82,9 @@ struct CleanAnalyticsView: View {
             return "\(minutes)m"
         }
     }
-
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        return formatter.string(from: date)
-    }
 }
 
-// MARK: - StatCard Component
-private struct StatCard: View {
+struct BasicCard: View {
     let title: String
     let value: String
     let icon: String
@@ -137,16 +99,16 @@ private struct StatCard: View {
             Text(value)
                 .font(.title3)
                 .bold()
-                .foregroundColor(.primary)
+                .themedPrimaryText()
 
             Text(title)
                 .font(.caption)
-                .foregroundColor(.secondary)
+                .themedSecondaryText()
                 .multilineTextAlignment(.center)
         }
         .padding()
         .frame(maxWidth: .infinity)
-        .background(Color(.systemBackground))
+        .themedSurface()
         .cornerRadius(8)
     }
 }

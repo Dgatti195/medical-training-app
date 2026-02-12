@@ -21,28 +21,28 @@ struct CleanAnalyticsView: View {
                             .foregroundColor(.primary)
 
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
-                            StatCard(
+                            AnalyticsCard(
                                 title: language == .portuguese ? "Sessões" : "Sessions",
                                 value: "\(progressTracker.totalSessionsCompleted)",
                                 icon: "list.bullet",
                                 color: .blue
                             )
 
-                            StatCard(
+                            AnalyticsCard(
                                 title: language == .portuguese ? "Precisão" : "Accuracy",
                                 value: String(format: "%.1f%%", progressTracker.averageAccuracy * 100),
                                 icon: "target",
                                 color: .green
                             )
 
-                            StatCard(
+                            AnalyticsCard(
                                 title: language == .portuguese ? "Tempo Total" : "Total Time",
                                 value: formatTime(progressTracker.totalStudyTime),
                                 icon: "clock",
                                 color: .orange
                             )
 
-                            StatCard(
+                            AnalyticsCard(
                                 title: language == .portuguese ? "Sequência" : "Streak",
                                 value: "\(progressTracker.currentStreak)",
                                 icon: "flame.fill",
@@ -122,7 +122,7 @@ struct CleanAnalyticsView: View {
 }
 
 // MARK: - StatCard Component
-private struct StatCard: View {
+private struct AnalyticsCard: View {
     let title: String
     let value: String
     let icon: String
