@@ -210,6 +210,21 @@ enum AppTheme: String, CaseIterable {
         case .colorBlindFriendly: return "Alternative colors for accessibility"
         }
     }
+
+    func getDescription(_ language: AppLanguage) -> String {
+        switch self {
+        case .system:
+            return language == .portuguese ? "Segue as configurações do dispositivo" : "Follows device settings"
+        case .light:
+            return language == .portuguese ? "Fundo claro, texto escuro" : "Light background, dark text"
+        case .dark:
+            return language == .portuguese ? "Fundo escuro, texto claro" : "Dark background, light text"
+        case .highContrast:
+            return language == .portuguese ? "Contraste máximo para melhor visibilidade" : "Maximum contrast for visibility"
+        case .colorBlindFriendly:
+            return language == .portuguese ? "Cores alternativas para acessibilidade" : "Alternative colors for accessibility"
+        }
+    }
 }
 
 enum FontSizeScale: String, CaseIterable {

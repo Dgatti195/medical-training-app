@@ -1,0 +1,8 @@
+appId: DOL.Med-IA4-0-CLAUDE2
+---
+# Quick smoke test - verify app launches and main screen is visible
+- launchApp
+- assertVisible: "Medical Database"
+- assertVisible: "All"
+- assertVisible: "Cardiovascular"
+- takeScreenshot: "smoke_main_screen"
