@@ -1,0 +1,215 @@
+appId: DOL.Med-IA4-0-CLAUDE2
+---
+# =============================================================================
+# STUDENT SIMULATION: Clinical Mode Full Session
+# Simulates a medical student doing a full clinical interview with AI patient
+# =============================================================================
+
+- launchApp
+- assertVisible: "Medical Database"
+- takeScreenshot: "clinical_01_main_screen"
+
+# --- ENSURE CLINICAL MODE IS SET ---
+- tapOn:
+    id: "profileButton"
+
+- extendedWaitUntil:
+    visible: "Done"
+    timeout: 5000
+
+# Tap Clinical mode button using accessibility ID
+- tapOn:
+    id: "trainingMode_clinical"
+
+# Close profile
+- tapOn: "Done"
+
+# Back on main screen
+- extendedWaitUntil:
+    visible: "Medical Database"
+    timeout: 5000
+
+- takeScreenshot: "clinical_02_main_after_profile"
+
+# --- SELECT A DISEASE ---
+# Tap the first disease in the list
+- tapOn:
+    text: "Chief Complaint:.*"
+    index: 0
+
+# --- DIFFICULTY PICKER (or Basic Mode if mode switch failed) ---
+- extendedWaitUntil:
+    visible: "Choose Difficulty"
+    timeout: 8000
+
+- takeScreenshot: "clinical_03_difficulty_picker"
+
+# Select Beginner difficulty
+- tapOn: "Beginner"
+
+# Tap Start Session
+- tapOn: "Start Session"
+
+# --- CLINICAL INTERVIEW SCREEN ---
+- extendedWaitUntil:
+    visible: "Order Test"
+    timeout: 8000
+
+- takeScreenshot: "clinical_04_interview_start"
+
+# --- ASK QUESTIONS (simulating student) ---
+
+# Question 1: Opening question
+- tapOn:
+    id: "questionTextField"
+- inputText: "Hello, what brings you in today?"
+- tapOn:
+    id: "sendButton"
+
+# Wait for AI response (typing indicator says "Thinking...")
+- extendedWaitUntil:
+    notVisible: "typing..."
+    timeout: 30000
+
+- takeScreenshot: "clinical_05_first_response"
+
+# Question 2: Follow-up about symptoms
+- tapOn:
+    id: "questionTextField"
+- inputText: "How long have you been feeling this way?"
+- tapOn:
+    id: "sendButton"
+
+- extendedWaitUntil:
+    notVisible: "typing..."
+    timeout: 30000
+
+- takeScreenshot: "clinical_06_second_response"
+
+# Question 3: More details
+- tapOn:
+    id: "questionTextField"
+- inputText: "Does anything make it better or worse?"
+- tapOn:
+    id: "sendButton"
+
+- extendedWaitUntil:
+    notVisible: "typing..."
+    timeout: 30000
+
+- takeScreenshot: "clinical_07_third_response"
+
+# Question 4: Medical history
+- tapOn:
+    id: "questionTextField"
+- inputText: "Do you have any chronic conditions or allergies?"
+- tapOn:
+    id: "sendButton"
+
+- extendedWaitUntil:
+    notVisible: "typing..."
+    timeout: 30000
+
+- takeScreenshot: "clinical_08_fourth_response"
+
+# --- ORDER A TEST ---
+- tapOn:
+    id: "orderTestButton"
+
+- extendedWaitUntil:
+    visible: "Enter test..."
+    timeout: 5000
+
+- takeScreenshot: "clinical_09_test_order_dialog"
+
+# Type a test name and submit
+- inputText: "Complete Blood Count"
+- tapOn: "Order"
+
+# Wait for test result to load
+- extendedWaitUntil:
+    notVisible: "Enter test"
+    timeout: 10000
+
+- extendedWaitUntil:
+    notVisible: "typing..."
+    timeout: 30000
+
+- takeScreenshot: "clinical_10_test_result"
+
+# Scroll down to make sure bottom buttons are visible
+- swipe:
+    direction: DOWN
+    duration: 500
+
+# --- SUBMIT DIAGNOSIS ---
+- tapOn:
+    id: "diagnosisButton"
+
+- extendedWaitUntil:
+    visible: "Submit"
+    timeout: 5000
+
+- takeScreenshot: "clinical_11_diagnosis_entry"
+
+# Type a diagnosis
+- tapOn:
+    id: "diagnosisTextField"
+- inputText: "Pneumonia"
+- tapOn:
+    id: "submitDiagnosisButton"
+
+# Wait for results
+- extendedWaitUntil:
+    visible: "Continue"
+    timeout: 15000
+
+- takeScreenshot: "clinical_12_diagnosis_result"
+
+# Scroll down to see full results
+- swipe:
+    direction: UP
+    duration: 500
+
+- takeScreenshot: "clinical_13_result_scrolled"
+
+# Scroll more for differential diagnosis
+- swipe:
+    direction: UP
+    duration: 500
+
+- takeScreenshot: "clinical_14_differential_diagnosis"
+
+# Tap Continue (may lead to treatment or study materials)
+- tapOn: "Continue"
+
+# Handle any post-diagnosis screens
+- takeScreenshot: "clinical_15_post_diagnosis"
+
+# Close any remaining sheet (Study Materials, Treatment, etc.)
+- tapOn:
+    text: "Close"
+    optional: true
+- tapOn:
+    text: "Done"
+    optional: true
+- tapOn:
+    text: "Fechar"
+    optional: true
+
+# If we're on the interview screen, go back to main
+- tapOn:
+    text: "Medical Database"
+    optional: true
+
+# Navigate back using the back button if needed
+- tapOn:
+    text: "< Medical Database"
+    optional: true
+
+# Wait for main screen
+- extendedWaitUntil:
+    visible: "Medical Database"
+    timeout: 10000
+
+- takeScreenshot: "clinical_16_back_to_main"

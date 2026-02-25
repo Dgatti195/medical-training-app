@@ -11,6 +11,11 @@ class APIKeyManager: ObservableObject {
     private let apiKeyAccount = "claude_api_key"
     
     private init() {
+        // If a key was injected via UserDefaults (e.g. xcrun simctl), promote it to Keychain
+        if let injectedKey = UserDefaults.standard.string(forKey: "claude_api_key"), !injectedKey.isEmpty {
+            _ = saveAPIKey(injectedKey)
+            UserDefaults.standard.removeObject(forKey: "claude_api_key")
+        }
         checkAPIKeyExists()
     }
     
@@ -55,16 +60,21 @@ class APIKeyManager: ObservableObject {
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
-        
+
         var dataTypeRef: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
-        
+
         if status == errSecSuccess,
            let data = dataTypeRef as? Data,
            let apiKey = String(data: data, encoding: .utf8) {
             return apiKey
         }
-        
+
+        // Fallback: check UserDefaults (useful for simulator testing via xcrun simctl defaults)
+        if let key = UserDefaults.standard.string(forKey: "claude_api_key"), !key.isEmpty {
+            return key
+        }
+
         return nil
     }
     

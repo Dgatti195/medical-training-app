@@ -30,8 +30,16 @@ class FeedbackManager: ObservableObject {
     @Published var feedbackHistory: [FeedbackHistoryItem] = []
     @Published var showingFeedbackHistory = false
 
-    // Debug mode - set to true for internal team builds
-    let debugMode = true
+    // Debug mode - set to true only for internal team builds
+    let debugMode = false
+
+    // Feedback service configuration — set airtableAPIKey via a server-side proxy in production
+    // NOTE: airtableAPIKey is intentionally left empty. Set it via a secure configuration mechanism.
+    private static let airtableAPIKey = "" // Do NOT hardcode a real key here
+    private static let airtableBaseID = "app5caxx3xO8yWqwr"
+    private static let airtableTableName = "Med.IA Feedback"
+    // Imgur Client-ID for anonymous image uploads — this is a public API credential (not secret)
+    private static let imgurClientID = "546c25a59c58ad7"
 
     // UserDefaults key for storing feedback history
     private let feedbackHistoryKey = "FeedbackHistory"
@@ -214,6 +222,11 @@ class FeedbackManager: ObservableObject {
     }
     
     func submitFeedback(language: AppLanguage) {
+        // Guard: do not upload screenshots to a third-party service if the feedback service is not configured
+        guard !Self.airtableAPIKey.isEmpty else {
+            showErrorMessage(language: language, error: "Feedback service not configured")
+            return
+        }
         if screenshot != nil {
             uploadScreenshotThenSubmit(language: language)
         } else {
@@ -229,10 +242,13 @@ class FeedbackManager: ObservableObject {
         }
         
         // Upload to Imgur (free image hosting)
-        let imgurURL = URL(string: "https://api.imgur.com/3/image")!
+        guard let imgurURL = URL(string: "https://api.imgur.com/3/image") else {
+            submitToAirtable(language: language, screenshotURL: nil)
+            return
+        }
         var request = URLRequest(url: imgurURL)
         request.httpMethod = "POST"
-        request.setValue("Client-ID 546c25a59c58ad7", forHTTPHeaderField: "Authorization")
+        request.setValue("Client-ID \(Self.imgurClientID)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         let base64String = imageData.base64EncodedString()
@@ -256,12 +272,6 @@ class FeedbackManager: ObservableObject {
                 if let error = error {
                     print("❌ Screenshot upload network error: \(error.localizedDescription)")
                 } else if let httpResponse = response as? HTTPURLResponse {
-                    print("📡 Imgur HTTP Status: \(httpResponse.statusCode)")
-                    
-                    if let data = data, let responseString = String(data: data, encoding: .utf8) {
-                        print("📄 Imgur response: \(responseString)")
-                    }
-                    
                     if let data = data,
                        let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                        let dataDict = json["data"] as? [String: Any],
@@ -279,13 +289,21 @@ class FeedbackManager: ObservableObject {
     }
     
     private func submitToAirtable(language: AppLanguage, screenshotURL: String?) {
-        // Airtable configuration
-        let airtableBaseID = "app5caxx3xO8yWqwr"
-        let airtableTableName = "Med.IA Feedback"
-        let airtableAPIKey = "YOUR_AIRTABLE_API_KEY_HERE"  // TODO: Move to secure storage
-        
-        let url = URL(string: "https://api.airtable.com/v0/\(airtableBaseID)/\(airtableTableName)")!
-        
+        // Use class-level configuration constants — key is validated in submitFeedback() before this is called
+        let airtableAPIKey = Self.airtableAPIKey
+        let airtableBaseID = Self.airtableBaseID
+        let airtableTableName = Self.airtableTableName
+
+        guard !airtableAPIKey.isEmpty else {
+            showErrorMessage(language: language, error: "Feedback service not configured")
+            return
+        }
+
+        guard let url = URL(string: "https://api.airtable.com/v0/\(airtableBaseID)/\(airtableTableName)") else {
+            showErrorMessage(language: language, error: "Invalid Airtable URL")
+            return
+        }
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(airtableAPIKey)", forHTTPHeaderField: "Authorization")
@@ -329,12 +347,6 @@ class FeedbackManager: ObservableObject {
                     print("❌ Invalid response type")
                     self?.showErrorMessage(language: language, error: "Invalid response")
                     return
-                }
-                
-                print("📡 HTTP Status: \(httpResponse.statusCode)")
-                
-                if let data = data, let responseString = String(data: data, encoding: .utf8) {
-                    print("📄 Response body: \(responseString)")
                 }
                 
                 if 200...299 ~= httpResponse.statusCode {

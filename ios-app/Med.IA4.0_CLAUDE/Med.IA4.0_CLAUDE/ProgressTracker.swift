@@ -55,6 +55,11 @@ struct WeeklyGoal: Codable, Identifiable {
         self.weekStartDate = weekStartDate
     }
 
+    /// Returns a bilingual display title based on goalType. Use this in the UI instead of `title`.
+    func getDisplayTitle(language: AppLanguage) -> String {
+        return goalType.getDisplayName(language: language)
+    }
+
     enum GoalType: String, Codable, CaseIterable {
         case sessionsPerWeek = "sessions"
         case minutesPerWeek = "minutes"

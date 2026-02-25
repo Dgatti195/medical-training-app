@@ -1,0 +1,128 @@
+appId: DOL.Med-IA4-0-CLAUDE2
+---
+# =============================================================================
+# STUDENT SIMULATION: Explore All Features
+# Tests navigation to every major feature screen
+# =============================================================================
+
+- launchApp
+- assertVisible: "Medical Database"
+
+# --- CATEGORY BROWSING ---
+- tapOn: "Cardiovascular"
+- takeScreenshot: "features_01_cardiovascular"
+
+- tapOn: "Autoimmune"
+- takeScreenshot: "features_02_autoimmune"
+
+- tapOn: "All"
+
+# --- SEARCH ---
+- tapOn:
+    id: "searchField"
+- inputText: "diabetes"
+- takeScreenshot: "features_03_search_diabetes"
+- tapOn:
+    id: "clearSearchButton"
+
+# --- PROFILE ---
+- tapOn:
+    id: "profileButton"
+- extendedWaitUntil:
+    visible: "Done"
+    timeout: 5000
+- takeScreenshot: "features_04_profile"
+
+# Scroll profile
+- swipe:
+    direction: UP
+    duration: 500
+- takeScreenshot: "features_05_profile_stats"
+
+- tapOn: "Done"
+
+# --- HISTORY ---
+- tapOn:
+    id: "historyButton"
+- extendedWaitUntil:
+    visible: "Session History"
+    timeout: 5000
+- takeScreenshot: "features_06_history"
+
+# Swipe down to dismiss the sheet
+- swipe:
+    direction: DOWN
+    duration: 300
+    startPercentage: 10
+    endPercentage: 90
+
+- extendedWaitUntil:
+    visible: "Medical Database"
+    timeout: 5000
+
+# --- ANALYTICS ---
+- tapOn:
+    id: "analyticsButton"
+- takeScreenshot: "features_07_analytics"
+
+- swipe:
+    direction: DOWN
+    duration: 300
+    startPercentage: 10
+    endPercentage: 90
+
+- extendedWaitUntil:
+    visible: "Medical Database"
+    timeout: 5000
+
+# --- SOCIAL HUB (via menu) ---
+- tapOn:
+    id: "moreOptionsMenu"
+- tapOn: "Social Hub"
+- takeScreenshot: "features_08_social_hub"
+
+- swipe:
+    direction: DOWN
+    duration: 300
+    startPercentage: 10
+    endPercentage: 90
+
+- extendedWaitUntil:
+    visible: "Medical Database"
+    timeout: 5000
+
+# --- THEME (via menu) ---
+- tapOn:
+    id: "moreOptionsMenu"
+- tapOn: "Theme"
+- takeScreenshot: "features_09_theme"
+
+- swipe:
+    direction: DOWN
+    duration: 300
+    startPercentage: 10
+    endPercentage: 90
+
+- extendedWaitUntil:
+    visible: "Medical Database"
+    timeout: 5000
+
+# --- STUDY TOOLS (via menu) ---
+- tapOn:
+    id: "moreOptionsMenu"
+- tapOn: "Study Tools"
+- takeScreenshot: "features_10_study_tools"
+
+- swipe:
+    direction: DOWN
+    duration: 300
+    startPercentage: 10
+    endPercentage: 90
+
+- extendedWaitUntil:
+    visible: "Medical Database"
+    timeout: 5000
+
+# --- FINAL STATE ---
+- assertVisible: "Medical Database"
+- takeScreenshot: "features_11_final"

@@ -1,0 +1,179 @@
+appId: DOL.Med-IA4-0-CLAUDE2
+---
+# =============================================================================
+# STUDENT SIMULATION: Portuguese Language Session
+# Tests the app in Portuguese - switches language, runs Basic Mode session
+# =============================================================================
+
+- launchApp
+- assertVisible: "Medical Database"
+
+# --- SWITCH TO PORTUGUESE VIA PROFILE ---
+- tapOn:
+    id: "profileButton"
+
+- extendedWaitUntil:
+    visible: "Profile"
+    timeout: 5000
+
+# Look for Portuguese language option
+- tapOn:
+    text: "Português"
+
+# Switch to Basic mode too for this test
+- tapOn:
+    text: "Básico"
+    optional: true
+
+- takeScreenshot: "portuguese_01_profile_pt"
+
+# Close profile
+- tapOn:
+    text: "OK"
+    optional: true
+- tapOn:
+    text: "Done"
+    optional: true
+- tapOn:
+    text: "Concluído"
+    optional: true
+
+# Back on main screen - should now be in Portuguese
+- extendedWaitUntil:
+    visible: "Base de Dados"
+    timeout: 5000
+    optional: true
+
+- takeScreenshot: "portuguese_02_main_screen_pt"
+
+# --- SELECT A DISEASE ---
+- tapOn:
+    text: "Queixa Principal:.*"
+    index: 0
+    optional: true
+
+# Fallback: tap first item if Portuguese text didn't match
+- tapOn:
+    text: "Chief Complaint:.*"
+    index: 0
+    optional: true
+
+# --- BASIC MODE IN PORTUGUESE ---
+- extendedWaitUntil:
+    visible: "Roteiro"
+    timeout: 8000
+    optional: true
+
+- takeScreenshot: "portuguese_03_basic_mode_pt"
+
+# Ask questions in Portuguese
+- tapOn:
+    id: "basicModeQuestionTextField"
+- inputText: "Qual é o seu nome?"
+- tapOn:
+    id: "basicModeSendButton"
+
+- extendedWaitUntil:
+    notVisible: "ProgressView"
+    timeout: 20000
+
+- takeScreenshot: "portuguese_04_name_pt"
+
+- tapOn:
+    id: "basicModeQuestionTextField"
+- inputText: "Quantos anos você tem?"
+- tapOn:
+    id: "basicModeSendButton"
+
+- extendedWaitUntil:
+    notVisible: "ProgressView"
+    timeout: 20000
+
+- takeScreenshot: "portuguese_05_age_pt"
+
+- tapOn:
+    id: "basicModeQuestionTextField"
+- inputText: "O que te traz aqui hoje?"
+- tapOn:
+    id: "basicModeSendButton"
+
+- extendedWaitUntil:
+    notVisible: "ProgressView"
+    timeout: 20000
+
+- takeScreenshot: "portuguese_06_complaint_pt"
+
+- tapOn:
+    id: "basicModeQuestionTextField"
+- inputText: "Há quanto tempo está sentindo isso?"
+- tapOn:
+    id: "basicModeSendButton"
+
+- extendedWaitUntil:
+    notVisible: "ProgressView"
+    timeout: 20000
+
+- swipe:
+    direction: UP
+    duration: 300
+
+- takeScreenshot: "portuguese_07_duration_pt"
+
+# Finish session
+- tapOn:
+    text: "Finalizar"
+
+- extendedWaitUntil:
+    visible: "Detalhamento"
+    timeout: 5000
+    optional: true
+
+- takeScreenshot: "portuguese_08_results_pt"
+
+# Scroll results
+- swipe:
+    direction: UP
+    duration: 500
+
+- takeScreenshot: "portuguese_09_results_detail_pt"
+
+# Dismiss
+- tapOn:
+    text: "Concluído"
+    optional: true
+- tapOn:
+    text: "Done"
+    optional: true
+
+# --- SWITCH BACK TO ENGLISH ---
+- extendedWaitUntil:
+    visible: "Base de Dados"
+    timeout: 5000
+    optional: true
+
+- tapOn:
+    id: "profileButton"
+
+- extendedWaitUntil:
+    visible: "Perfil"
+    timeout: 5000
+    optional: true
+
+- tapOn: "English"
+
+# Switch back to Clinical mode
+- tapOn:
+    text: "Clinical"
+    optional: true
+- tapOn:
+    text: "Clínico"
+    optional: true
+
+- tapOn:
+    text: "Done"
+    optional: true
+- tapOn:
+    text: "Concluído"
+    optional: true
+
+- takeScreenshot: "portuguese_10_back_to_english"

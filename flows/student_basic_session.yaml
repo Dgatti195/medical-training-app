@@ -1,0 +1,180 @@
+appId: DOL.Med-IA4-0-CLAUDE2
+---
+# =============================================================================
+# STUDENT SIMULATION: Basic Mode Full Session
+# Simulates a student doing structured anamnesis training
+# =============================================================================
+
+- launchApp
+- assertVisible: "Medical Database"
+
+# --- SWITCH TO BASIC MODE ---
+- tapOn:
+    id: "profileButton"
+- extendedWaitUntil:
+    visible: "Done"
+    timeout: 5000
+- tapOn:
+    id: "trainingMode_basic"
+- tapOn: "Done"
+
+- extendedWaitUntil:
+    visible: "Medical Database"
+    timeout: 5000
+
+# --- SELECT A DISEASE (goes directly to Basic Mode, no difficulty picker) ---
+- tapOn:
+    text: "Chief Complaint:.*"
+    index: 0
+
+# --- BASIC MODE INTERVIEW ---
+- extendedWaitUntil:
+    visible: "Checklist"
+    timeout: 8000
+
+- takeScreenshot: "basic_01_anamnese_start"
+
+# --- ASK ANAMNESIS QUESTIONS ---
+
+# Q1: Patient identification
+- tapOn:
+    id: "basicModeQuestionTextField"
+- inputText: "What is your name?"
+- tapOn:
+    id: "basicModeSendButton"
+- extendedWaitUntil:
+    notVisible: "typing..."
+    timeout: 30000
+- takeScreenshot: "basic_02_name_response"
+
+# Q2: Age
+- tapOn:
+    id: "basicModeQuestionTextField"
+- inputText: "How old are you?"
+- tapOn:
+    id: "basicModeSendButton"
+- extendedWaitUntil:
+    notVisible: "typing..."
+    timeout: 30000
+- takeScreenshot: "basic_03_age_response"
+
+# Q3: Chief complaint
+- tapOn:
+    id: "basicModeQuestionTextField"
+- inputText: "What brings you in today?"
+- tapOn:
+    id: "basicModeSendButton"
+- extendedWaitUntil:
+    notVisible: "typing..."
+    timeout: 30000
+- takeScreenshot: "basic_04_complaint_response"
+
+# Q4: Duration
+- tapOn:
+    id: "basicModeQuestionTextField"
+- inputText: "When did the symptoms start?"
+- tapOn:
+    id: "basicModeSendButton"
+- extendedWaitUntil:
+    notVisible: "typing..."
+    timeout: 30000
+- takeScreenshot: "basic_05_duration_response"
+
+# Q5: Medical history
+- tapOn:
+    id: "basicModeQuestionTextField"
+- inputText: "Do you have any pre-existing conditions?"
+- tapOn:
+    id: "basicModeSendButton"
+- extendedWaitUntil:
+    notVisible: "typing..."
+    timeout: 30000
+- takeScreenshot: "basic_06_history_response"
+
+# Q6: Medications
+- tapOn:
+    id: "basicModeQuestionTextField"
+- inputText: "Are you taking any medications?"
+- tapOn:
+    id: "basicModeSendButton"
+- extendedWaitUntil:
+    notVisible: "typing..."
+    timeout: 30000
+- takeScreenshot: "basic_07_medications_response"
+
+# Q7: Family history
+- tapOn:
+    id: "basicModeQuestionTextField"
+- inputText: "Does anyone in your family have similar problems?"
+- tapOn:
+    id: "basicModeSendButton"
+- extendedWaitUntil:
+    notVisible: "typing..."
+    timeout: 30000
+- takeScreenshot: "basic_08_family_response"
+
+# Q8: Lifestyle
+- tapOn:
+    id: "basicModeQuestionTextField"
+- inputText: "Do you smoke or drink alcohol?"
+- tapOn:
+    id: "basicModeSendButton"
+- extendedWaitUntil:
+    notVisible: "typing..."
+    timeout: 30000
+- takeScreenshot: "basic_09_lifestyle_response"
+
+# Check checklist progress
+- takeScreenshot: "basic_10_checklist_progress"
+
+# --- FINISH SESSION ---
+- tapOn: "Finish"
+
+- extendedWaitUntil:
+    visible: "Results"
+    timeout: 8000
+
+- takeScreenshot: "basic_11_results_overview"
+
+# Scroll to see breakdown
+- swipe:
+    direction: UP
+    duration: 500
+- takeScreenshot: "basic_12_results_details"
+
+# Scroll to see strengths and areas to improve
+- swipe:
+    direction: UP
+    duration: 500
+- takeScreenshot: "basic_13_areas_to_improve"
+
+# Scroll to see missed questions and Done button
+- swipe:
+    direction: UP
+    duration: 500
+- takeScreenshot: "basic_14_missed_questions"
+
+# Keep scrolling to the Done button
+- swipe:
+    direction: UP
+    duration: 500
+
+# Tap Done to dismiss results
+- tapOn: "Done"
+
+# Verify we're back at the main screen
+- extendedWaitUntil:
+    visible: "Medical Database"
+    timeout: 8000
+
+- takeScreenshot: "basic_14_back_to_main"
+
+# --- RESTORE CLINICAL MODE ---
+- tapOn:
+    id: "profileButton"
+- extendedWaitUntil:
+    visible: "Done"
+    timeout: 5000
+- tapOn:
+    id: "trainingMode_clinical"
+- tapOn: "Done"

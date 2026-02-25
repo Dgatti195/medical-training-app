@@ -229,7 +229,7 @@ struct WeeklyGoalRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(goal.title)
+                Text(goal.getDisplayTitle(language: language))
                     .font(.subheadline)
                     .fontWeight(.medium)
                 Spacer()

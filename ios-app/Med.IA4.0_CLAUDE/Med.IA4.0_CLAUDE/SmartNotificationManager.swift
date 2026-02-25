@@ -16,6 +16,9 @@ class SmartNotificationManager: ObservableObject {
     @Published var currentStreak = 0
     var achievements: [Achievement] = []
 
+    /// Language used for notification content. Set this before calling scheduleSmartNotifications().
+    var language: AppLanguage = .english
+
     private let center = UNUserNotificationCenter.current()
 
     init() {
@@ -62,8 +65,10 @@ class SmartNotificationManager: ObservableObject {
         guard dailyRemindersEnabled else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = "Study Reminder"
-        content.body = "Time for your daily medical training session!"
+        content.title = language == .portuguese ? "Lembrete de Estudo" : "Study Reminder"
+        content.body = language == .portuguese ?
+            "Hora da sua sessão diária de treinamento médico!" :
+            "Time for your daily medical training session!"
         content.sound = .default
 
         let components = Calendar.current.dateComponents([.hour, .minute], from: reminderTime)
@@ -82,8 +87,10 @@ class SmartNotificationManager: ObservableObject {
         guard streakNotificationsEnabled else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = "Maintain Your Streak!"
-        content.body = "Don't break your \(currentStreak)-day study streak!"
+        content.title = language == .portuguese ? "Mantenha Sua Sequência!" : "Maintain Your Streak!"
+        content.body = language == .portuguese ?
+            "Não perca sua sequência de \(currentStreak) dias de estudo!" :
+            "Don't break your \(currentStreak)-day study streak!"
         content.sound = .default
 
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 86400, repeats: false) // 24 hours
@@ -107,7 +114,7 @@ class SmartNotificationManager: ObservableObject {
         guard achievementNotificationsEnabled && notificationPermissionGranted else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = "Achievement Unlocked!"
+        content.title = language == .portuguese ? "Conquista Desbloqueada!" : "Achievement Unlocked!"
         content.body = achievement.title
         content.sound = .default
 

@@ -1,0 +1,234 @@
+appId: DOL.Med-IA4-0-CLAUDE2
+---
+# =============================================================================
+# STUDENT SIMULATION: Multiple Disease Sessions
+# Tests 3 different diseases back-to-back in Clinical Mode
+# Verifies the app handles repeated use without degradation
+# =============================================================================
+
+- launchApp
+- assertVisible: "Medical Database"
+
+# ===== SESSION 1: First disease (Infectious category) =====
+- tapOn: "Infectious"
+- takeScreenshot: "multi_01_infectious_category"
+
+# Tap first infectious disease
+- tapOn:
+    text: "Chief Complaint:.*"
+    index: 0
+
+- extendedWaitUntil:
+    visible: "Choose Difficulty"
+    timeout: 5000
+
+- tapOn: "Beginner"
+- tapOn: "Start Session"
+
+- extendedWaitUntil:
+    visible: "Order Test"
+    timeout: 8000
+
+- takeScreenshot: "multi_02_session1_start"
+
+# Quick interview - 2 questions
+- tapOn:
+    id: "questionTextField"
+- inputText: "What symptoms are you experiencing?"
+- tapOn:
+    id: "sendButton"
+
+- extendedWaitUntil:
+    notVisible: "Thinking"
+    timeout: 20000
+
+- tapOn:
+    id: "questionTextField"
+- inputText: "Do you have a fever?"
+- tapOn:
+    id: "sendButton"
+
+- extendedWaitUntil:
+    notVisible: "Thinking"
+    timeout: 20000
+
+- takeScreenshot: "multi_03_session1_conversation"
+
+# Diagnose
+- tapOn:
+    id: "diagnosisButton"
+
+- extendedWaitUntil:
+    visible: "diagnosis"
+    timeout: 5000
+
+- tapOn:
+    id: "diagnosisTextField"
+- inputText: "Viral infection"
+- tapOn:
+    id: "submitDiagnosisButton"
+
+- extendedWaitUntil:
+    visible: "Continue"
+    timeout: 10000
+
+- takeScreenshot: "multi_04_session1_result"
+
+- tapOn: "Continue"
+
+- extendedWaitUntil:
+    visible: "Medical Database"
+    timeout: 5000
+
+# ===== SESSION 2: Cardiovascular category =====
+- tapOn: "Cardiovascular"
+- takeScreenshot: "multi_05_cardiovascular_category"
+
+- tapOn:
+    text: "Chief Complaint:.*"
+    index: 0
+
+- extendedWaitUntil:
+    visible: "Choose Difficulty"
+    timeout: 5000
+
+- tapOn: "Intermediate"
+- tapOn: "Start Session"
+
+- extendedWaitUntil:
+    visible: "Order Test"
+    timeout: 8000
+
+- takeScreenshot: "multi_06_session2_start"
+
+# Quick interview
+- tapOn:
+    id: "questionTextField"
+- inputText: "Tell me about your chest pain"
+- tapOn:
+    id: "sendButton"
+
+- extendedWaitUntil:
+    notVisible: "Thinking"
+    timeout: 20000
+
+- tapOn:
+    id: "questionTextField"
+- inputText: "Any shortness of breath?"
+- tapOn:
+    id: "sendButton"
+
+- extendedWaitUntil:
+    notVisible: "Thinking"
+    timeout: 20000
+
+- takeScreenshot: "multi_07_session2_conversation"
+
+# Order an ECG
+- tapOn:
+    id: "orderTestButton"
+
+- extendedWaitUntil:
+    visible: "Order"
+    timeout: 5000
+
+- inputText: "ECG"
+- tapOn: "Order"
+
+- extendedWaitUntil:
+    notVisible: "Thinking"
+    timeout: 20000
+
+- takeScreenshot: "multi_08_session2_ecg_result"
+
+# Diagnose
+- tapOn:
+    id: "diagnosisButton"
+
+- extendedWaitUntil:
+    visible: "diagnosis"
+    timeout: 5000
+
+- tapOn:
+    id: "diagnosisTextField"
+- inputText: "Hypertension"
+- tapOn:
+    id: "submitDiagnosisButton"
+
+- extendedWaitUntil:
+    visible: "Continue"
+    timeout: 10000
+
+- takeScreenshot: "multi_09_session2_result"
+
+- tapOn: "Continue"
+
+- extendedWaitUntil:
+    visible: "Medical Database"
+    timeout: 5000
+
+# ===== SESSION 3: Respiratory category =====
+- tapOn: "Respiratory"
+- takeScreenshot: "multi_10_respiratory_category"
+
+- tapOn:
+    text: "Chief Complaint:.*"
+    index: 0
+
+- extendedWaitUntil:
+    visible: "Choose Difficulty"
+    timeout: 5000
+
+- tapOn: "Advanced"
+- tapOn: "Start Session"
+
+- extendedWaitUntil:
+    visible: "Order Test"
+    timeout: 8000
+
+- takeScreenshot: "multi_11_session3_start"
+
+# Brief interview
+- tapOn:
+    id: "questionTextField"
+- inputText: "How is your breathing?"
+- tapOn:
+    id: "sendButton"
+
+- extendedWaitUntil:
+    notVisible: "Thinking"
+    timeout: 20000
+
+- takeScreenshot: "multi_12_session3_response"
+
+# Diagnose
+- tapOn:
+    id: "diagnosisButton"
+
+- extendedWaitUntil:
+    visible: "diagnosis"
+    timeout: 5000
+
+- tapOn:
+    id: "diagnosisTextField"
+- inputText: "Asthma"
+- tapOn:
+    id: "submitDiagnosisButton"
+
+- extendedWaitUntil:
+    visible: "Continue"
+    timeout: 10000
+
+- takeScreenshot: "multi_13_session3_result"
+
+- tapOn: "Continue"
+
+# Back to main screen
+- extendedWaitUntil:
+    visible: "Medical Database"
+    timeout: 5000
+
+# Return to All category
+- tapOn: "All"
+
+- takeScreenshot: "multi_14_all_done"
