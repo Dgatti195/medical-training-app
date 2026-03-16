@@ -5,6 +5,7 @@ struct CleanAnalyticsView: View {
     @StateObject private var progressTracker = ProgressTracker.shared
     @StateObject private var themeManager = ThemeManager.shared
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var language: AppLanguage {
         userProfile.currentLanguage
@@ -20,7 +21,7 @@ struct CleanAnalyticsView: View {
                             .font(.headline)
                             .foregroundColor(.primary)
 
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: horizontalSizeClass == .regular ? 4 : 2), spacing: 12) {
                             StatCard(
                                 title: language == .portuguese ? "Sessões" : "Sessions",
                                 value: "\(progressTracker.totalSessionsCompleted)",
@@ -88,6 +89,7 @@ struct CleanAnalyticsView: View {
                     Spacer()
                 }
                 .padding()
+                .frame(maxWidth: .infinity)
             }
             .background(Color(.systemBackground))
             .navigationTitle(language == .portuguese ? "Análises" : "Analytics")
@@ -100,6 +102,7 @@ struct CleanAnalyticsView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
         .preferredColorScheme(themeManager.getColorScheme())
     }
 

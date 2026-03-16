@@ -8,6 +8,7 @@ struct ContentView: View {
     @StateObject private var uxManager = UXEnhancementManager.shared
     @StateObject private var themeManager = ThemeManager.shared
     @StateObject private var ratingManager = CaseDifficultyRatingManager.shared
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var searchText = ""
     @State private var selectedCategory = "All"
     @State private var showingProfile = false
@@ -90,9 +91,9 @@ struct ContentView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "flame.fill")
                                 .foregroundColor(.orange)
-                                .font(.caption)
+                                .adaptiveCaption()
                             Text("\(progressTracker.currentStreak)")
-                                .font(.caption)
+                                .adaptiveCaption()
                                 .fontWeight(.bold)
                         }
                         .padding(.horizontal, 8)
@@ -104,9 +105,9 @@ struct ContentView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.green)
-                                .font(.caption)
+                                .adaptiveCaption()
                             Text("\(progressTracker.todayProgress.sessionsCompleted)")
-                                .font(.caption)
+                                .adaptiveCaption()
                                 .fontWeight(.bold)
                         }
                         .padding(.horizontal, 8)
@@ -126,7 +127,7 @@ struct ContentView: View {
                             HStack(spacing: 4) {
                                 Image(systemName: showingFavorites ? "heart.fill" : "heart")
                                     .foregroundColor(showingFavorites ? .red : .secondary)
-                                    .font(.caption)
+                                    .adaptiveCaption()
                             }
                         }
                         .accessibilityLabel(showingFavorites
@@ -143,7 +144,7 @@ struct ContentView: View {
                         ) {
                             HStack(spacing: 4) {
                                 Image(systemName: "chart.line.uptrend.xyaxis")
-                                    .font(.caption)
+                                    .adaptiveCaption()
                             }
                             .foregroundColor(.blue)
                         }
@@ -167,14 +168,14 @@ struct ContentView: View {
                         ) {
                             HStack(spacing: 4) {
                                 Image(systemName: "dice")
-                                    .font(.caption)
+                                    .adaptiveCaption()
                             }
                             .foregroundColor(.blue)
                         }
                         .accessibilityLabel(userProfile.currentLanguage == .portuguese ? "Caso Aleatório" : "Random Case")
                         .accessibilityIdentifier("randomCaseButton")
                     }
-                    .padding(.horizontal)
+                    .adaptivePadding(.horizontal)
 
                     // Search Bar
                     VStack {
@@ -225,7 +226,7 @@ struct ContentView: View {
                                                 .foregroundColor(.primary)
                                             Spacer()
                                             Text(translateMedicalCategory(suggestion.category, to: userProfile.currentLanguage))
-                                                .font(.caption)
+                                                .adaptiveCaption()
                                                 .foregroundColor(.secondary)
                                         }
                                         .padding(.horizontal, 12)
@@ -241,6 +242,7 @@ struct ContentView: View {
                             .background(Color(.systemBackground))
                             .cornerRadius(8)
                             .shadow(radius: 2)
+                            .frame(maxWidth: .infinity)
                         }
 
                         // Recent Searches
@@ -256,15 +258,15 @@ struct ContentView: View {
                                         .background(Color.blue.opacity(0.1))
                                         .foregroundColor(.blue)
                                         .cornerRadius(15)
-                                        .font(.caption)
+                                        .adaptiveCaption()
                                     }
                                 }
-                                .padding(.horizontal)
+                                .adaptivePadding(.horizontal)
                             }
                         }
                     }
                 }
-                .padding(.horizontal)
+                .adaptivePadding(.horizontal)
 
                 // Category Filter
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -281,7 +283,7 @@ struct ContentView: View {
                             .accessibilityAddTraits(selectedCategory == category ? .isSelected : [])
                         }
                     }
-                    .padding(.horizontal)
+                    .adaptivePadding(.horizontal)
                 }
 
                 // Disease list — skeleton while loading, error state, or real list
@@ -302,7 +304,7 @@ struct ContentView: View {
                             .font(.headline)
                             .foregroundColor(.red)
                         Text(error)
-                            .font(.caption)
+                            .adaptiveCaption()
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                         Button(userProfile.currentLanguage == .portuguese ? "Tentar Novamente" : "Retry") {
@@ -322,13 +324,13 @@ struct ContentView: View {
                             Text(userProfile.currentLanguage == .portuguese ?
                                  "Banco de dados incompleto (\(dataManager.diseases.count) condições)" :
                                  "Database incomplete (\(dataManager.diseases.count) conditions)")
-                                .font(.caption)
+                                .adaptiveCaption()
                                 .foregroundColor(.orange)
                             Button(userProfile.currentLanguage == .portuguese ?
                                    "Atualizar Banco de Dados" : "Update Database") {
                                 dataManager.forceUpdateDatabase()
                             }
-                            .font(.caption)
+                            .adaptiveCaption()
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .background(Color.orange)
@@ -414,6 +416,7 @@ struct ContentView: View {
                     }
                 }
                 }
+                .frame(maxWidth: .infinity)
             }
             .navigationTitle(userProfile.currentLanguage == .portuguese ? "Base de Dados Médica" : "Medical Database")
             .navigationBarTitleDisplayMode(.large)
@@ -497,35 +500,35 @@ struct ContentView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showingProfile) {
+            .adaptiveFullSheet(isPresented: $showingProfile) {
                 UserProfileView()
                     .environmentObject(userProfile)
             }
-            .sheet(isPresented: $showingAnalytics) {
+            .adaptiveFullSheet(isPresented: $showingAnalytics) {
                 CleanAnalyticsView()
                     .environmentObject(userProfile)
             }
-            .sheet(isPresented: $showingProgress) {
+            .adaptiveFullSheet(isPresented: $showingProgress) {
                 ProgressDashboardView()
                     .environmentObject(userProfile)
             }
-            .sheet(isPresented: $showingNotificationSettings) {
+            .adaptiveFullSheet(isPresented: $showingNotificationSettings) {
                 NotificationSettingsView()
                     .environmentObject(userProfile)
             }
-            .sheet(isPresented: $showingSocialHub) {
+            .adaptiveFullSheet(isPresented: $showingSocialHub) {
                 SocialHubView()
                     .environmentObject(userProfile)
             }
-            .sheet(isPresented: $showingThemeSettings) {
+            .adaptiveFullSheet(isPresented: $showingThemeSettings) {
                 ThemeSettingsView()
                     .environmentObject(userProfile)
             }
-            .sheet(isPresented: $showingStudyTools) {
+            .adaptiveFullSheet(isPresented: $showingStudyTools) {
                 StudyToolsView()
                     .environmentObject(userProfile)
             }
-            .sheet(isPresented: $showingHistory) {
+            .adaptiveFullSheet(isPresented: $showingHistory) {
                 SessionHistoryView(language: userProfile.currentLanguage)
                     .environmentObject(userProfile)
                     .environmentObject(dataManager)
@@ -537,12 +540,12 @@ struct ContentView: View {
                     language: userProfile.currentLanguage,
                     onStart: {
                         showingDifficultyPicker = false
-                        // Trigger navigation
                         if let disease = selectedDisease {
                             navigationTrigger = disease.id
                         }
                     }
                 )
+                .presentationDetents([.large])
             }
             .onAppear {
                 self.loadRecentSearches()
@@ -553,6 +556,7 @@ struct ContentView: View {
                 GlobalLoadingOverlay(language: userProfile.currentLanguage)
             )
         }
+        .navigationViewStyle(.stack)
         .preferredColorScheme(themeManager.getColorScheme())
     }
 
@@ -613,13 +617,13 @@ struct PatientRowView: View {
             // Patient name (disease name hidden - user must diagnose)
             if let patientCase = resolvedCase {
                 Text(patientCase.demographics.name)
-                    .font(.headline)
+                    .adaptiveHeadline()
                     .fontWeight(.bold)
                     .foregroundColor(.primary)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(language == .portuguese ? "Queixa Principal:" : "Chief Complaint:")
-                        .font(.caption)
+                        .adaptiveCaption()
                         .foregroundColor(.secondary)
 
                     let chiefComplaints = patientCase.presentingSymptoms.filter { $0.isChiefComplaint }
@@ -628,13 +632,13 @@ struct PatientRowView: View {
                         // Fallback: show first 2 symptoms when no chief complaint is flagged
                         ForEach(patientCase.presentingSymptoms.prefix(2), id: \.id) { symptom in
                             Text("• \(symptom.getText(language))")
-                                .font(.caption)
+                                .adaptiveCaption()
                                 .foregroundColor(.primary)
                         }
                     } else {
                         ForEach(chiefComplaints, id: \.id) { symptom in
                             Text("• \(symptom.getText(language))")
-                                .font(.caption)
+                                .adaptiveCaption()
                                 .foregroundColor(.primary)
                         }
                     }
@@ -644,7 +648,7 @@ struct PatientRowView: View {
 
                 HStack {
                     Text(translateMedicalCategory(disease.category, to: language))
-                        .font(.caption)
+                        .adaptiveCaption()
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(categoryColor.opacity(0.2))
@@ -658,10 +662,10 @@ struct PatientRowView: View {
                     if let avg = ratingManager.averageRating(for: disease.nameEnglish) {
                         HStack(spacing: 2) {
                             Image(systemName: "star.fill")
-                                .font(.caption2)
+                                .adaptiveCaption2()
                                 .foregroundColor(.yellow)
                             Text(String(format: "%.1f", avg))
-                                .font(.caption2)
+                                .adaptiveCaption2()
                                 .foregroundColor(.secondary)
                         }
                     }
@@ -671,7 +675,7 @@ struct PatientRowView: View {
                     // Recommended badge (task 3.4)
                     if isRecommended {
                         Text(language == .portuguese ? "Recomendado" : "Recommended")
-                            .font(.caption2)
+                            .adaptiveCaption2()
                             .fontWeight(.semibold)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
@@ -691,7 +695,7 @@ struct PatientRowView: View {
 
                     if userProfile.profile.preferredTrainingMode == .basic {
                         Text(language == .portuguese ? "Treino de Anamnese" : "Anamnesis Training")
-                            .font(.caption)
+                            .adaptiveCaption()
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                             .background(Color.green.opacity(0.2))
@@ -699,7 +703,7 @@ struct PatientRowView: View {
                             .cornerRadius(8)
                     } else {
                         Text(language == .portuguese ? "Desafio Diagnóstico" : "Diagnostic Challenge")
-                            .font(.caption)
+                            .adaptiveCaption()
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                             .background(Color.blue.opacity(0.2))
@@ -717,7 +721,7 @@ struct PatientRowView: View {
                     .foregroundColor(.secondary)
             }
         }
-        .padding(.vertical, 4)
+        .adaptivePadding(.vertical, 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(buildAccessibilityLabel(for: resolvedCase))
         .accessibilityHint(language == .portuguese ? "Toque duplo para iniciar uma sessão" : "Double tap to start a session")
@@ -748,41 +752,45 @@ struct DiseaseSkeletonRow: View {
     @State private var isAnimating = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Patient name placeholder
-            RoundedRectangle(cornerRadius: 4)
-                .fill(Color.gray.opacity(isAnimating ? 0.25 : 0.12))
-                .frame(height: 18)
-                .frame(maxWidth: 200)
+        GeometryReader { geometry in
+            let w = geometry.size.width
+            VStack(alignment: .leading, spacing: 8) {
+                // Patient name placeholder
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.gray.opacity(isAnimating ? 0.25 : 0.12))
+                    .frame(height: 18)
+                    .frame(maxWidth: w * 0.45)
 
-            // Chief complaint label placeholder
-            RoundedRectangle(cornerRadius: 4)
-                .fill(Color.gray.opacity(isAnimating ? 0.2 : 0.1))
-                .frame(height: 12)
-                .frame(maxWidth: 110)
-
-            // Symptom lines
-            ForEach(0..<2, id: \.self) { i in
+                // Chief complaint label placeholder
                 RoundedRectangle(cornerRadius: 4)
                     .fill(Color.gray.opacity(isAnimating ? 0.2 : 0.1))
                     .frame(height: 12)
-                    .frame(maxWidth: i == 0 ? 240 : 180)
-            }
+                    .frame(maxWidth: w * 0.25)
 
-            // Badges row
-            HStack(spacing: 8) {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(isAnimating ? 0.25 : 0.12))
-                    .frame(width: 90, height: 24)
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(isAnimating ? 0.2 : 0.1))
-                    .frame(width: 60, height: 24)
-                Spacer()
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(isAnimating ? 0.25 : 0.12))
-                    .frame(width: 130, height: 24)
+                // Symptom lines
+                ForEach(0..<2, id: \.self) { i in
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.gray.opacity(isAnimating ? 0.2 : 0.1))
+                        .frame(height: 12)
+                        .frame(maxWidth: i == 0 ? w * 0.55 : w * 0.40)
+                }
+
+                // Badges row
+                HStack(spacing: 8) {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.gray.opacity(isAnimating ? 0.25 : 0.12))
+                        .frame(maxWidth: w * 0.20, minHeight: 24, maxHeight: 24)
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.gray.opacity(isAnimating ? 0.2 : 0.1))
+                        .frame(maxWidth: w * 0.14, minHeight: 24, maxHeight: 24)
+                    Spacer()
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.gray.opacity(isAnimating ? 0.25 : 0.12))
+                        .frame(maxWidth: w * 0.30, minHeight: 24, maxHeight: 24)
+                }
             }
         }
+        .frame(height: 110)
         .padding(.vertical, 6)
         .onAppear {
             withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {

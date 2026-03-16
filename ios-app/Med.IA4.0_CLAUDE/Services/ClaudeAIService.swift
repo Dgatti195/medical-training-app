@@ -98,9 +98,10 @@ class ClaudeAIService: ObservableObject {
         """
         
         do {
-            let response = try await makeAPIRequest(prompt: fullPrompt, apiKey: apiKey)
+            let response = try await makeAPIRequest(prompt: fullPrompt, apiKey: apiKey, model: "claude-sonnet-4-6")
             return response
         } catch {
+            print("[ClaudeAIService] generateTestResult error: \(error.localizedDescription)")
             return getTestFallbackResponse(testRequest: testRequest, patientCase: patientCase, language: language)
         }
     }
@@ -121,10 +122,14 @@ class ClaudeAIService: ObservableObject {
 
             REGRAS:
             1. Fale como uma pessoa comum. Use estas palavras exatas acima para descrever seus sintomas.
-            2. Responda em 1-2 frases curtas.
+            2. CRITICAL — SEJA CONCISO. Responda em 1 frase curta por padrão. Use 2 frases APENAS se a pergunta exigir (ex: descrever múltiplos sintomas). NUNCA dê respostas longas.
+               BOM: "Tenho sentido dor na barriga há uns 3 dias."
+               BOM: "Não, nenhuma alergia."
+               RUIM: "Olha doutor, eu tenho sentido uma dor na barriga que começou há uns 3 dias e tem piorado bastante, principalmente depois das refeições, e estou bastante preocupado com isso."
             3. Para "onde dói" → diga uma parte do corpo. Para "há quanto tempo" → dê um período de tempo.
             4. Você NÃO sabe o nome da sua doença.
             5. Responda APENAS em PORTUGUÊS BRASILEIRO.
+            6. Respostas longas APENAS se a pergunta pedir explicitamente detalhes (ex: "descreva em detalhes").
             \(getDifficultyModifier(difficulty: difficulty, language: .portuguese))
             """
         } else {
@@ -136,10 +141,14 @@ class ClaudeAIService: ObservableObject {
 
             RULES:
             1. Speak like a regular person. Use these exact descriptions above when talking about symptoms.
-            2. Answer in 1-2 short sentences.
+            2. CRITICAL — BE CONCISE. Default to 1 short sentence. Only use 2 sentences if the question requires it (e.g., describing multiple symptoms). NEVER give paragraph-length answers.
+               GOOD: "My stomach's been hurting for about 3 days."
+               GOOD: "No, no allergies."
+               BAD: "Well doctor, I've been having this pain in my stomach that started about 3 days ago and it's been getting worse, especially after meals, and I'm really worried about it."
             3. For "where does it hurt" → name a body part. For "how long" → give a time period.
             4. You do NOT know the name of your disease.
             5. Respond in ENGLISH only.
+            6. Only give longer responses if the question explicitly asks for detail (e.g., "describe in detail").
             \(getDifficultyModifier(difficulty: difficulty, language: .english))
             """
         }
@@ -347,30 +356,34 @@ class ClaudeAIService: ObservableObject {
         if language == .portuguese {
             return """
             Você é um sistema médico fornecendo resultados de exames para um paciente de \(demographics.age) anos.
-            
+
             ACHADOS FÍSICOS DISPONÍVEIS: \(findings)
             RESULTADOS LABORATORIAIS: \(labResults)
-            
+
             IMPORTANTE: Forneça APENAS os resultados objetivos do exame em PORTUGUÊS BRASILEIRO.
             NUNCA use inglês, francês ou outro idioma - apenas português brasileiro.
             NÃO mencione possíveis diagnósticos ou interpretações.
             NÃO diga "consistente com" ou "sugere" qualquer condição.
             Apenas relate os achados clínicos objetivos.
             Mantenha as respostas concisas e clínicas.
+            SEMPRE inclua valores numéricos específicos com unidades (ex: 14,2 g/dL, 120/80 mmHg, 38,2°C).
+            NUNCA use valores como X, N/A, ou deixe em branco. Gere valores realistas consistentes com a condição do paciente.
             """
         } else {
             return """
             You are a medical system providing test results for a \(demographics.age)-year-old patient.
-            
+
             PHYSICAL EXAM FINDINGS: \(findings)
             LAB RESULTS: \(labResults)
-            
+
             IMPORTANT: Provide ONLY objective test results in ENGLISH.
             NEVER use French, Spanish, Portuguese, or other languages - only English.
             DO NOT mention possible diagnoses or interpretations.
             DO NOT say "consistent with" or "suggests" any condition.
             Only report objective clinical findings.
             Keep responses concise and clinical.
+            ALWAYS include specific numeric values with units (e.g., 14.2 g/dL, 120/80 mmHg, 38.2°C).
+            NEVER use placeholder values like X, N/A, or leave blanks. Generate realistic values consistent with the patient's condition.
             """
         }
     }
@@ -410,6 +423,7 @@ class ClaudeAIService: ObservableObject {
         
         guard 200...299 ~= httpResponse.statusCode else {
             let errorBody = String(data: data, encoding: .utf8) ?? "no body"
+            print("[ClaudeAIService] API error \(httpResponse.statusCode) for model \(model): \(errorBody)")
             if httpResponse.statusCode == 401 {
                 throw NSError(domain: "Unauthorized", code: 401, userInfo: [NSLocalizedDescriptionKey: "Unauthorized. Please check your API key."])
             }
@@ -535,10 +549,11 @@ class ClaudeAIService: ObservableObject {
         """
 
         do {
-            let response = try await makeAPIRequest(prompt: prompt, apiKey: apiKey, maxTokens: 50)
+            let response = try await makeAPIRequest(prompt: prompt, apiKey: apiKey, maxTokens: 50, model: "claude-sonnet-4-6")
             let questionId = Int(response.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
             return questionId == 0 ? nil : questionId
         } catch {
+            print("[ClaudeAIService] detectQuestion error: \(error.localizedDescription)")
             return nil
         }
     }
@@ -588,14 +603,20 @@ class ClaudeAIService: ObservableObject {
         Answer naturally and briefly:
         """
 
-        let response = try await makeAPIRequest(prompt: prompt, apiKey: apiKey, maxTokens: 60)
+        let response = try await makeAPIRequest(prompt: prompt, apiKey: apiKey, maxTokens: 60, model: "claude-sonnet-4-6")
         return response.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func getTestFallbackResponse(testRequest: String, patientCase: PatientCase, language: AppLanguage) -> String {
         let lowercaseTest = testRequest.lowercased()
-        let labResults = patientCase.availableLabResults.map { $0.getText(language) }
-        
+        // Filter out empty and N/A results before picking a random one
+        let labResults = patientCase.availableLabResults
+            .map { $0.getText(language) }
+            .filter { text in
+                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                return !trimmed.isEmpty && trimmed != "n/a" && trimmed != "unknown result" && trimmed != "resultado desconhecido"
+            }
+
         if language == .portuguese {
             if lowercaseTest.contains("pressão") {
                 return "Pressão arterial: 120/80 mmHg"

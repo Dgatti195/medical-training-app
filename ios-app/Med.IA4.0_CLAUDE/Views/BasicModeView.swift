@@ -1,6 +1,12 @@
 import SwiftUI
 import Foundation
 
+// MARK: - Identifiable wrapper so fullScreenCover(item:) works on iPad
+private struct BasicModeResultItem: Identifiable {
+    let id = UUID()
+    let result: BasicModeResult
+}
+
 // MARK: - Basic Mode Patient Simulation View (Anamnese Training)
 struct BasicModePatientSimulationView: View {
     let disease: Disease
@@ -9,6 +15,7 @@ struct BasicModePatientSimulationView: View {
     @StateObject private var aiService = ClaudeAIService()
     @Environment(\.dismiss) private var dismiss
     @StateObject private var themeManager = ThemeManager.shared
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     // Session State
     @State private var session = BasicModeSession()
@@ -16,8 +23,7 @@ struct BasicModePatientSimulationView: View {
     @State private var currentMessage = ""
     @State private var isLoading = false
     @State private var showingChecklist = true
-    @State private var showingResults = false
-    @State private var sessionResult: BasicModeResult?
+    @State private var resultItem: BasicModeResultItem?
     @State private var showingAPIError = false
     @State private var apiErrorMessage = ""
 
@@ -40,7 +46,7 @@ struct BasicModePatientSimulationView: View {
                 // Left Sidebar: Checklist
                 if showingChecklist {
                     checklistSidebar
-                        .frame(width: geometry.size.width * 0.45)
+                        .frame(width: geometry.size.width * (horizontalSizeClass == .regular ? 0.30 : 0.45))
                         .background(Color(.systemGray6))
                 }
 
@@ -69,7 +75,7 @@ struct BasicModePatientSimulationView: View {
                                             .padding(12)
                                             .background(Color.blue.opacity(0.1))
                                             .cornerRadius(12)
-                                            .frame(maxWidth: geometry.size.width * 0.6, alignment: .trailing)
+                                            .frame(maxWidth: geometry.size.width * (horizontalSizeClass == .regular ? 0.65 : 0.60), alignment: .trailing)
                                     }
                                     .id("question-\(index)")
 
@@ -98,7 +104,7 @@ struct BasicModePatientSimulationView: View {
                                         }
                                         Spacer()
                                     }
-                                    .frame(maxWidth: geometry.size.width * 0.6, alignment: .leading)
+                                    .frame(maxWidth: geometry.size.width * (horizontalSizeClass == .regular ? 0.65 : 0.60), alignment: .leading)
                                     .id("answer-\(index)")
                                 }
 
@@ -158,19 +164,17 @@ struct BasicModePatientSimulationView: View {
                 .disabled(conversationHistory.isEmpty)
             }
         }
-        .sheet(isPresented: $showingResults, onDismiss: {
+        .adaptiveFullSheetItem(item: $resultItem, onDismiss: {
             dismiss()
-        }) {
-            if let result = sessionResult {
-                BasicModeResultsView(
-                    result: result,
-                    disease: disease,
-                    language: language,
-                    onDismiss: {
-                        showingResults = false
-                    }
-                )
-            }
+        }) { item in
+            BasicModeResultsView(
+                result: item.result,
+                disease: disease,
+                language: language,
+                onDismiss: {
+                    resultItem = nil
+                }
+            )
         }
         .onAppear {
             initializeSession()
@@ -463,10 +467,12 @@ struct BasicModePatientSimulationView: View {
                             : "Invalid API key. Please check your key in Settings."
                         showingAPIError = true
                     } else {
-                        // Real network/server error
+                        // Real network/server error — show actual error for debugging
+                        let detail = nsError.localizedDescription
+                        print("[BasicMode] API error: \(detail)")
                         apiErrorMessage = language == .portuguese
-                            ? "Não foi possível contatar o servidor de IA. Verifique sua conexão."
-                            : "Could not reach the AI server. Please check your connection."
+                            ? "Erro do servidor de IA: \(detail)"
+                            : "AI server error: \(detail)"
                         showingAPIError = true
                     }
                     conversationHistory.append((
@@ -489,9 +495,10 @@ struct BasicModePatientSimulationView: View {
     }
 
     private func finishSession() {
-        // Calculate results
-        sessionResult = calculateSessionResults()
-        showingResults = true
+        // Calculate results — using item-based presentation so fullScreenCover
+        // receives the data directly (fixes blank sheet on iPad).
+        let result = calculateSessionResults()
+        resultItem = BasicModeResultItem(result: result)
     }
 
     private func calculateSessionResults() -> BasicModeResult {
@@ -686,6 +693,7 @@ struct BasicModeResultsView: View {
 
     @StateObject private var themeManager = ThemeManager.shared
     @StateObject private var ratingManager = CaseDifficultyRatingManager.shared
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var selectedRating: Int = 0
 
     var body: some View {
@@ -907,10 +915,12 @@ struct BasicModeResultsView: View {
                     }
                 }
                 .padding()
+                .frame(maxWidth: .infinity)
             }
             .navigationTitle(language == .portuguese ? "Resultados" : "Results")
             .navigationBarTitleDisplayMode(.inline)
         }
+        .navigationViewStyle(.stack)
         .preferredColorScheme(themeManager.getColorScheme())
     }
 

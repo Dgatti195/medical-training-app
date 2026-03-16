@@ -80,6 +80,7 @@ struct PatientSimulationView: View {
     @EnvironmentObject var userProfile: UserProfileManager
     @EnvironmentObject var dataManager: MedicalDatabaseManager
     @StateObject private var aiService = ClaudeAIService() // UPDATED: No hardcoded API key
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @State private var currentQuestion = ""
     @State private var conversationHistory: [ConversationTurn] = []
@@ -120,7 +121,8 @@ struct PatientSimulationView: View {
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ))
-                                .frame(width: 46, height: 46)
+                                .frame(width: horizontalSizeClass == .regular ? 56 : 46,
+                                       height: horizontalSizeClass == .regular ? 56 : 46)
                             Text(patientInitials(patient))
                                 .font(.headline)
                                 .fontWeight(.bold)
@@ -129,10 +131,10 @@ struct PatientSimulationView: View {
                         VStack(alignment: .leading, spacing: 3) {
                             HStack {
                                 Text(patient.demographics.name)
-                                    .font(.headline)
+                                    .adaptiveHeadline()
                                 Spacer()
                                 Text("CLINICAL")
-                                    .font(.caption2)
+                                    .adaptiveCaption2()
                                     .fontWeight(.bold)
                                     .foregroundColor(.blue)
                                     .minimumScaleFactor(0.7)
@@ -146,7 +148,7 @@ struct PatientSimulationView: View {
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                             Text("ID: \(patient.demographics.patientID)")
-                                .font(.caption)
+                                .adaptiveCaption()
                                 .foregroundColor(.blue.opacity(0.8))
                         }
                     }
@@ -163,12 +165,12 @@ struct PatientSimulationView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "person.badge.shield.checkmark")
                                 .foregroundColor(.purple)
-                                .font(.caption)
+                                .adaptiveCaption()
                             Text(getPersonalityDisplayName(for: patient))
-                                .font(.caption)
+                                .adaptiveCaption()
                                 .foregroundColor(.purple)
                             Image(systemName: "info.circle")
-                                .font(.caption2)
+                                .adaptiveCaption2()
                                 .foregroundColor(.purple.opacity(0.7))
                         }
                         .padding(.horizontal, 10)
@@ -185,7 +187,7 @@ struct PatientSimulationView: View {
                     // Chief complaints
                     VStack(alignment: .leading, spacing: 4) {
                         Text(getChiefComplaintTitle())
-                            .font(.caption)
+                            .adaptiveCaption()
                             .foregroundColor(.secondary)
 
                         if getChiefComplaints(from: patient).isEmpty {
@@ -233,8 +235,12 @@ struct PatientSimulationView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        ForEach(conversationHistory) { turn in
-                            ConversationBubbleView(turn: turn, language: userProfile.currentLanguage)
+                        ForEach(Array(conversationHistory.enumerated()), id: \.element.id) { index, turn in
+                            ConversationBubbleView(
+                                turn: turn,
+                                language: userProfile.currentLanguage,
+                                rating: $conversationHistory[index].rating
+                            )
                                 .transition(.asymmetric(
                                     insertion: .opacity.combined(with: .move(edge: .bottom)),
                                     removal: .opacity
@@ -318,7 +324,7 @@ struct PatientSimulationView: View {
                                     currentQuestion = template
                                 }) {
                                     Text(template)
-                                        .font(.caption)
+                                        .adaptiveCaption()
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 6)
                                         .background(Color.gray.opacity(0.15))
@@ -338,7 +344,7 @@ struct PatientSimulationView: View {
                             Image(systemName: "testtube.2")
                             Text(getOrderTestText())
                         }
-                        .font(.caption)
+                        .adaptiveCaption()
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                         .background(Color.purple.opacity(0.2))
@@ -354,7 +360,7 @@ struct PatientSimulationView: View {
                             Image(systemName: "stethoscope")
                             Text(getFinalDiagnosisText())
                         }
-                        .font(.caption)
+                        .adaptiveCaption()
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                         .background(Color.red.opacity(0.2))
@@ -370,7 +376,7 @@ struct PatientSimulationView: View {
                             Image(systemName: "book.fill")
                             Text(getStudyMaterialsText())
                         }
-                        .font(.caption)
+                        .adaptiveCaption()
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                         .background(Color.blue.opacity(0.2))
@@ -401,6 +407,7 @@ struct PatientSimulationView: View {
                     checkDiagnosis(diagnosis)
                 }
             )
+            .presentationDetents([.large])
         }
         .sheet(isPresented: $showingTestEntry) {
             TestEntryView(
@@ -412,8 +419,9 @@ struct PatientSimulationView: View {
                     orderTest(test)
                 }
             )
+            .presentationDetents([.large])
         }
-        .sheet(isPresented: $showingResults) {
+        .adaptiveFullSheet(isPresented: $showingResults) {
             if let result = diagnosisResult {
                 DiagnosisResultView(
                     result: result,
@@ -449,8 +457,9 @@ struct PatientSimulationView: View {
                     showingStudyMaterials = true
                 }
             )
+            .presentationDetents([.large])
         }
-        .sheet(isPresented: $showingTreatmentEvaluation) {
+        .adaptiveFullSheet(isPresented: $showingTreatmentEvaluation) {
             if let result = treatmentResult {
                 TreatmentEvaluationView(
                     result: result,
@@ -462,7 +471,7 @@ struct PatientSimulationView: View {
                 )
             }
         }
-        .sheet(isPresented: $showingStudyMaterials) {
+        .adaptiveFullSheet(isPresented: $showingStudyMaterials) {
             StudyMaterialsView(
                 disease: disease,
                 language: userProfile.currentLanguage
@@ -474,6 +483,7 @@ struct PatientSimulationView: View {
                     personality: patient.personality,
                     language: userProfile.currentLanguage
                 )
+                .presentationDetents([.medium])
             }
         }
         .sheet(isPresented: $showingPersonalityAdjustment) {
@@ -485,6 +495,7 @@ struct PatientSimulationView: View {
                     ),
                     language: userProfile.currentLanguage
                 )
+                .presentationDetents([.large])
             }
         }
         .onAppear {
@@ -634,13 +645,43 @@ struct PatientSimulationView: View {
             let questionLabel = userProfile.currentLanguage == .portuguese ? "Médico" : "Doctor"
             let responseLabel = userProfile.currentLanguage == .portuguese ? "Paciente" : "Patient"
 
+            var ratingText = ""
+            if let rating = turn.rating {
+                let ratingLabel = userProfile.currentLanguage == .portuguese ? "Avaliação" : "Rating"
+                ratingText = "\n    \(ratingLabel): \(rating.displayText(userProfile.currentLanguage))"
+            }
+
             export += """
 
             [\(index + 1)] \(questionLabel): \(turn.question)
 
-            \(responseLabel): \(turn.response)
+            \(responseLabel): \(turn.response)\(ratingText)
 
             """
+        }
+
+        // Rating summary
+        let ratedTurns = conversationHistory.filter { $0.rating != nil }
+        if !ratedTurns.isEmpty {
+            let summaryLabel = userProfile.currentLanguage == .portuguese ? "RESUMO DE AVALIAÇÕES" : "RATING SUMMARY"
+            let goodCount = ratedTurns.filter { $0.rating == .good }.count
+            let issueCount = ratedTurns.count - goodCount
+            export += """
+
+            \(summaryLabel):
+            • \(userProfile.currentLanguage == .portuguese ? "Total avaliadas" : "Total rated"): \(ratedTurns.count)/\(conversationHistory.count)
+            • \(userProfile.currentLanguage == .portuguese ? "Boas" : "Good"): \(goodCount)
+            • \(userProfile.currentLanguage == .portuguese ? "Com problemas" : "With issues"): \(issueCount)
+
+            """
+
+            let issueBreakdown = ratedTurns.filter { $0.rating != .good && $0.rating != nil }
+            if !issueBreakdown.isEmpty {
+                let issueTypes = Dictionary(grouping: issueBreakdown, by: { $0.rating! })
+                for (rating, turns) in issueTypes {
+                    export += "  - \(rating.displayText(userProfile.currentLanguage)): \(turns.count)\n"
+                }
+            }
         }
 
         export += """
@@ -1066,16 +1107,19 @@ struct PressScaleButtonStyle: ButtonStyle {
 struct ConversationBubbleView: View {
     let turn: ConversationTurn
     let language: AppLanguage
+    @Binding var rating: ResponseRating?
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var showingRatingPicker = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(getQuestionTypeLabel())
-                    .font(.caption)
+                    .adaptiveCaption()
                     .foregroundColor(.secondary)
                 Spacer()
                 Text(turn.timestamp, style: .time)
-                    .font(.caption)
+                    .adaptiveCaption()
                     .foregroundColor(.secondary)
             }
 
@@ -1089,8 +1133,71 @@ struct ConversationBubbleView: View {
                 .padding()
                 .background(Color(.systemGray6))
                 .cornerRadius(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Rating buttons
+            HStack(spacing: 12) {
+                // Thumbs up
+                Button(action: {
+                    rating = (rating == .good) ? nil : .good
+                    showingRatingPicker = false
+                }) {
+                    Image(systemName: rating == .good ? "hand.thumbsup.fill" : "hand.thumbsup")
+                        .font(.caption)
+                        .foregroundColor(rating == .good ? .green : .secondary)
+                }
+                .buttonStyle(.plain)
+
+                // Thumbs down
+                Button(action: {
+                    showingRatingPicker.toggle()
+                }) {
+                    Image(systemName: (rating != nil && rating != .good) ? "hand.thumbsdown.fill" : "hand.thumbsdown")
+                        .font(.caption)
+                        .foregroundColor((rating != nil && rating != .good) ? .orange : .secondary)
+                }
+                .buttonStyle(.plain)
+
+                // Show current rating indicator
+                if let r = rating {
+                    Text(r.displayText(language))
+                        .font(.caption2)
+                        .foregroundColor(r == .good ? .green : .orange)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background((r == .good ? Color.green : Color.orange).opacity(0.12))
+                        .cornerRadius(4)
+                }
+
+                Spacer()
+            }
+            .padding(.top, 2)
+
+            // Rating category picker (shown when thumbs down tapped)
+            if showingRatingPicker {
+                HStack(spacing: 8) {
+                    ForEach([ResponseRating.tooWordy, .wrongInfo, .unnaturalLanguage, .other], id: \.rawValue) { option in
+                        Button(action: {
+                            rating = option
+                            showingRatingPicker = false
+                        }) {
+                            Text(option.displayText(language))
+                                .font(.caption2)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(rating == option ? Color.orange.opacity(0.2) : Color(.systemGray5))
+                                .cornerRadius(6)
+                                .foregroundColor(rating == option ? .orange : .primary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.top, 2)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
         .padding(.vertical, 4)
+        .animation(.easeInOut(duration: 0.2), value: showingRatingPicker)
     }
 
     private func getQuestionTypeLabel() -> String {

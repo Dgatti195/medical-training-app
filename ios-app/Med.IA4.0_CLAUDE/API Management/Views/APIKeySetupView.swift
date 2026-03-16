@@ -161,6 +161,7 @@ struct APIKeySetupView: View {
                 .foregroundColor(.gray)
             )
         }
+        .navigationViewStyle(.stack)
         .alert(userProfile.currentLanguage == .portuguese ? "Status da Chave da API" : "API Key Status", isPresented: $showAlert) {
             Button("OK") {
                 if alertMessage.contains("successfully") {

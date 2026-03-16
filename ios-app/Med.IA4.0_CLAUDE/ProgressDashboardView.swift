@@ -6,6 +6,7 @@ struct ProgressDashboardView: View {
     @EnvironmentObject var userProfile: UserProfileManager
     @StateObject private var progressTracker = ProgressTracker.shared
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var language: AppLanguage {
         userProfile.currentLanguage
@@ -47,6 +48,7 @@ struct ProgressDashboardView: View {
                     )
                 }
                 .padding()
+                .frame(maxWidth: .infinity)
             }
             .navigationTitle(language == .portuguese ? "Progresso" : "Progress")
             .navigationBarTitleDisplayMode(.large)
@@ -58,6 +60,7 @@ struct ProgressDashboardView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
     }
 }
 
@@ -114,6 +117,7 @@ struct StreakCardView: View {
 struct TodayProgressCard: View {
     let progress: DailyProgress
     let language: AppLanguage
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -127,7 +131,7 @@ struct TodayProgressCard: View {
                 Spacer()
             }
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 16) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: horizontalSizeClass == .regular ? 4 : 2), spacing: 16) {
                 ProgressMetricCard(
                     title: language == .portuguese ? "Sessões" : "Sessions",
                     value: "\(progress.sessionsCompleted)",
@@ -312,6 +316,7 @@ struct WeeklyProgressChart: View {
 struct WeeklyStatsCard: View {
     let stats: (totalSessions: Int, totalTime: TimeInterval, uniqueConditions: Int, avgAccuracy: Double)
     let language: AppLanguage
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -325,7 +330,7 @@ struct WeeklyStatsCard: View {
                 Spacer()
             }
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 16) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: horizontalSizeClass == .regular ? 4 : 2), spacing: 16) {
                 StatRow(
                     title: language == .portuguese ? "Total de Sessões" : "Total Sessions",
                     value: "\(stats.totalSessions)"

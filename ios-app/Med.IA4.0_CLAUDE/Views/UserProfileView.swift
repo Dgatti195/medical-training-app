@@ -4,6 +4,7 @@ import SwiftUI
 struct UserProfileView: View {
     @EnvironmentObject var userProfile: UserProfileManager
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
         NavigationView {
@@ -167,6 +168,7 @@ struct UserProfileView: View {
                     }
                 }
                 .padding()
+                .frame(maxWidth: .infinity)
             }
             .navigationTitle(userProfile.currentLanguage == .portuguese ? "Perfil" : "Profile")
             .navigationBarTitleDisplayMode(.inline)
@@ -194,6 +196,7 @@ struct UserProfileView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
     }
 
     private func formatStudyTime(_ timeInterval: TimeInterval) -> String {
@@ -395,13 +398,14 @@ struct WeekProgressBar: View {
 struct MetricsOverviewView: View {
     let metrics: PerformanceMetrics
     let language: AppLanguage
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(language == .portuguese ? "Métricas Detalhadas" : "Detailed Metrics")
                 .font(.headline)
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: horizontalSizeClass == .regular ? 4 : 2), spacing: 12) {
                 MetricCard(
                     title: language == .portuguese ? "Tempo Médio" : "Avg Response",
                     value: formatTime(metrics.averageResponseTime),
@@ -690,6 +694,7 @@ struct AnalyticsDashboardView: View {
             .navigationTitle(userProfile.currentLanguage == .portuguese ? "Análise Detalhada" : "Detailed Analytics")
             .navigationBarTitleDisplayMode(.inline)
         }
+        .navigationViewStyle(.stack)
     }
 
     private var timeRangeSelector: some View {
@@ -1070,6 +1075,7 @@ struct SessionRowView: View {
 struct DifficultyProgressionView: View {
     let sessions: [SessionData]
     let language: AppLanguage
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -1086,7 +1092,7 @@ struct DifficultyProgressionView: View {
             } else {
                 let difficultyBreakdown = calculateDifficultyBreakdown()
 
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: horizontalSizeClass == .regular ? 4 : 2), spacing: 12) {
                     ForEach(DifficultyLevel.allCases, id: \.self) { level in
                         let count = difficultyBreakdown[level] ?? 0
                         let accuracy = calculateAccuracyForLevel(level)

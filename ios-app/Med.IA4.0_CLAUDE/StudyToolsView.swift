@@ -60,6 +60,7 @@ struct StudyToolsView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
         .preferredColorScheme(themeManager.getColorScheme())
     }
 }
@@ -118,6 +119,7 @@ struct BookmarksView: View {
             .navigationTitle(language == .portuguese ? "Favoritos" : "Bookmarks")
             .navigationBarTitleDisplayMode(.large)
         }
+        .navigationViewStyle(.stack)
     }
 }
 
@@ -207,11 +209,14 @@ struct StudyNotesView: View {
             }
             .sheet(isPresented: $showingAddNote) {
                 AddStudyNoteView(studyToolsManager: studyToolsManager, language: language)
+                    .presentationDetents([.large])
             }
             .sheet(item: $showingNoteDetail) { note in
                 NoteDetailView(note: note, studyToolsManager: studyToolsManager, language: language)
+                    .presentationDetents([.large])
             }
         }
+        .navigationViewStyle(.stack)
     }
 
     private func deleteNotes(offsets: IndexSet) {
@@ -321,6 +326,7 @@ struct AddStudyNoteView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
     }
 }
 
@@ -398,6 +404,7 @@ struct NoteDetailView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
         .onAppear {
             editedContent = note.content
         }
@@ -452,8 +459,10 @@ struct StudySetsView: View {
             }
             .sheet(isPresented: $showingCreateSet) {
                 CreateStudySetView(studyToolsManager: studyToolsManager, language: language)
+                    .presentationDetents([.large])
             }
         }
+        .navigationViewStyle(.stack)
     }
 
     private func deleteStudySets(offsets: IndexSet) {
@@ -593,6 +602,7 @@ struct CreateStudySetView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
     }
 }
 
@@ -662,11 +672,13 @@ struct FlashCardsView: View {
             }
             .sheet(isPresented: $showingCreateCard) {
                 CreateFlashCardView(studyToolsManager: studyToolsManager, language: language)
+                    .presentationDetents([.large])
             }
             .fullScreenCover(isPresented: $showingStudySession) {
                 FlashCardStudyView(studyToolsManager: studyToolsManager, language: language)
             }
         }
+        .navigationViewStyle(.stack)
     }
 
     private func deleteFlashCards(offsets: IndexSet) {
@@ -806,6 +818,7 @@ struct CreateFlashCardView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
     }
 }
 
@@ -961,6 +974,7 @@ struct FlashCardStudyView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
         .onAppear {
             sessionCards = studyToolsManager.flashCards.shuffled()
         }
@@ -984,6 +998,7 @@ struct FlashCardStudyView: View {
 struct ExportView: View {
     @ObservedObject var studyToolsManager: StudyToolsManager
     let language: AppLanguage
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var showingShareSheet = false
     @State private var exportedData = ""
 
@@ -1001,7 +1016,7 @@ struct ExportView: View {
                             .font(.headline)
                             .themedPrimaryText()
 
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 12) {
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: horizontalSizeClass == .regular ? 4 : 2), spacing: 12) {
                             StatisticCard(
                                 title: language == .portuguese ? "Favoritos" : "Bookmarks",
                                 value: "\(statistics.totalBookmarks)",
@@ -1068,9 +1083,11 @@ struct ExportView: View {
             .navigationBarTitleDisplayMode(.large)
             .themedBackground()
         }
+        .navigationViewStyle(.stack)
         .sheet(isPresented: $showingShareSheet) {
             if !exportedData.isEmpty {
                 ActivityViewController(activityItems: [exportedData])
+                    .presentationDetents([.large])
             }
         }
     }

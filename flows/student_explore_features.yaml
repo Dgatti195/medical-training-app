@@ -49,7 +49,14 @@ appId: DOL.Med-IA4-0-CLAUDE2
     timeout: 5000
 - takeScreenshot: "features_06_history"
 
-# Swipe down to dismiss the sheet
+# Tap Done to dismiss (works for both sheet and fullScreenCover)
+- tapOn:
+    text: "Done"
+    optional: true
+- tapOn:
+    text: "Close"
+    optional: true
+# Fallback: swipe down if neither button found (iPhone sheet)
 - swipe:
     direction: DOWN
     duration: 300
@@ -65,6 +72,9 @@ appId: DOL.Med-IA4-0-CLAUDE2
     id: "analyticsButton"
 - takeScreenshot: "features_07_analytics"
 
+- tapOn:
+    text: "Done"
+    optional: true
 - swipe:
     direction: DOWN
     duration: 300
@@ -81,6 +91,9 @@ appId: DOL.Med-IA4-0-CLAUDE2
 - tapOn: "Social Hub"
 - takeScreenshot: "features_08_social_hub"
 
+- tapOn:
+    text: "Done"
+    optional: true
 - swipe:
     direction: DOWN
     duration: 300
@@ -97,6 +110,9 @@ appId: DOL.Med-IA4-0-CLAUDE2
 - tapOn: "Theme"
 - takeScreenshot: "features_09_theme"
 
+- tapOn:
+    text: "Done"
+    optional: true
 - swipe:
     direction: DOWN
     duration: 300
@@ -113,6 +129,9 @@ appId: DOL.Med-IA4-0-CLAUDE2
 - tapOn: "Study Tools"
 - takeScreenshot: "features_10_study_tools"
 
+- tapOn:
+    text: "Done"
+    optional: true
 - swipe:
     direction: DOWN
     duration: 300

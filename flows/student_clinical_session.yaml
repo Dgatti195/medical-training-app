@@ -71,6 +71,11 @@ appId: DOL.Med-IA4-0-CLAUDE2
     notVisible: "typing..."
     timeout: 30000
 
+# Dismiss connection error alert if it appears
+- tapOn:
+    text: "OK"
+    optional: true
+
 - takeScreenshot: "clinical_05_first_response"
 
 # Question 2: Follow-up about symptoms
@@ -83,6 +88,11 @@ appId: DOL.Med-IA4-0-CLAUDE2
 - extendedWaitUntil:
     notVisible: "typing..."
     timeout: 30000
+
+# Dismiss connection error alert if it appears
+- tapOn:
+    text: "OK"
+    optional: true
 
 - takeScreenshot: "clinical_06_second_response"
 
@@ -97,6 +107,11 @@ appId: DOL.Med-IA4-0-CLAUDE2
     notVisible: "typing..."
     timeout: 30000
 
+# Dismiss connection error alert if it appears
+- tapOn:
+    text: "OK"
+    optional: true
+
 - takeScreenshot: "clinical_07_third_response"
 
 # Question 4: Medical history
@@ -109,6 +124,11 @@ appId: DOL.Med-IA4-0-CLAUDE2
 - extendedWaitUntil:
     notVisible: "typing..."
     timeout: 30000
+
+# Dismiss connection error alert if it appears
+- tapOn:
+    text: "OK"
+    optional: true
 
 - takeScreenshot: "clinical_08_fourth_response"
 
@@ -134,6 +154,11 @@ appId: DOL.Med-IA4-0-CLAUDE2
 - extendedWaitUntil:
     notVisible: "typing..."
     timeout: 30000
+
+# Dismiss connection error alert if it appears
+- tapOn:
+    text: "OK"
+    optional: true
 
 - takeScreenshot: "clinical_10_test_result"
 
@@ -164,6 +189,16 @@ appId: DOL.Med-IA4-0-CLAUDE2
     visible: "Continue"
     timeout: 15000
 
+# Dismiss connection error alert if it appears
+- tapOn:
+    text: "OK"
+    optional: true
+
+# Re-wait for Continue in case alert was covering it
+- extendedWaitUntil:
+    visible: "Continue"
+    timeout: 10000
+
 - takeScreenshot: "clinical_12_diagnosis_result"
 
 # Scroll down to see full results
@@ -182,6 +217,11 @@ appId: DOL.Med-IA4-0-CLAUDE2
 
 # Tap Continue (may lead to treatment or study materials)
 - tapOn: "Continue"
+
+# Dismiss connection error alert if it appears
+- tapOn:
+    text: "OK"
+    optional: true
 
 # Handle any post-diagnosis screens
 - takeScreenshot: "clinical_15_post_diagnosis"

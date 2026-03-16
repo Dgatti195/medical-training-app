@@ -1,0 +1,46 @@
+appId: DOL.Med-IA4-0-CLAUDE2
+---
+# Test iPad Phase 2 layout - Profile sheet
+- tapOn:
+    id: "profileButton"
+- waitForAnimationToEnd
+- takeScreenshot: "phase2_profile"
+
+# Close profile
+- tapOn: "Done"
+- waitForAnimationToEnd
+
+# Test Analytics sheet
+- tapOn:
+    id: "analyticsButton"
+- waitForAnimationToEnd
+- takeScreenshot: "phase2_analytics"
+
+# Close analytics
+- tapOn: "Done"
+- waitForAnimationToEnd
+
+# Test Progress sheet
+- tapOn:
+    id: "viewProgressButton"
+- waitForAnimationToEnd
+- takeScreenshot: "phase2_progress"
+
+# Close progress
+- tapOn: "Done"
+- waitForAnimationToEnd
+
+# Test More menu -> Theme
+- tapOn:
+    id: "moreOptionsMenu"
+- waitForAnimationToEnd
+- tapOn: "Theme"
+- waitForAnimationToEnd
+- takeScreenshot: "phase2_theme"
+
+# Close theme
+- tapOn: "Done"
+- waitForAnimationToEnd
+
+# Take final main screen screenshot
+- takeScreenshot: "phase2_main_final"

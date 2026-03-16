@@ -250,6 +250,30 @@ func translateMedicalCategory(_ category: String, to language: AppLanguage) -> S
 
 // UserProfileManager extracted to Services/UserProfileManager.swift
 
+// MARK: - Response Rating for Teacher Testing
+enum ResponseRating: String, Codable {
+    case good
+    case tooWordy = "too_wordy"
+    case wrongInfo = "wrong_info"
+    case unnaturalLanguage = "unnatural_language"
+    case other
+
+    func displayText(_ language: AppLanguage) -> String {
+        switch self {
+        case .good:
+            return language == .portuguese ? "Boa resposta" : "Good response"
+        case .tooWordy:
+            return language == .portuguese ? "Muito longa" : "Too wordy"
+        case .wrongInfo:
+            return language == .portuguese ? "Info errada" : "Wrong info"
+        case .unnaturalLanguage:
+            return language == .portuguese ? "Linguagem artificial" : "Unnatural language"
+        case .other:
+            return language == .portuguese ? "Outro" : "Other"
+        }
+    }
+}
+
 // MARK: - Conversation Models
 struct ConversationTurn: Identifiable {
     var id = UUID()
@@ -257,6 +281,7 @@ struct ConversationTurn: Identifiable {
     let response: String
     let timestamp: Date
     let isTest: Bool
+    var rating: ResponseRating? = nil
 }
 
 /// A similar disease that could be confused with the correct diagnosis.
@@ -449,6 +474,7 @@ struct StudyMaterialsView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
     }
 }
 
@@ -456,6 +482,7 @@ struct StudyMaterialsView: View {
 struct SessionHistoryView: View {
     @EnvironmentObject var userProfile: UserProfileManager
     @EnvironmentObject var dataManager: MedicalDatabaseManager
+    @Environment(\.dismiss) private var dismiss
     @State private var selectedFilter: SessionFilter = .all
     @State private var selectedSession: SessionData?
     @State private var showingSessionDetail = false
@@ -619,7 +646,15 @@ struct SessionHistoryView: View {
             }
             .navigationTitle(language == .portuguese ? "Histórico de Sessões" : "Session History")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(language == .portuguese ? "Fechar" : "Done") {
+                        dismiss()
+                    }
+                }
+            }
         }
+        .navigationViewStyle(.stack)
         .sheet(isPresented: $showingSessionDetail) {
             if let session = selectedSession {
                 SessionDetailView(session: session, language: language, dataManager: dataManager)
@@ -838,6 +873,7 @@ struct SessionDetailView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
     }
 
     private func formatDuration(_ duration: TimeInterval) -> String {
@@ -884,59 +920,59 @@ struct DifficultyPickerView: View {
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 24) {
-                // Only show difficulty selection for Clinical mode
-                // (Basic mode bypasses this view entirely)
-                VStack(spacing: 8) {
-                    Image(systemName: "gauge.with.dots.needle.67percent")
-                        .font(.system(size: 60))
-                        .foregroundColor(.purple)
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Only show difficulty selection for Clinical mode
+                    // (Basic mode bypasses this view entirely)
+                    VStack(spacing: 8) {
+                        Image(systemName: "gauge.with.dots.needle.67percent")
+                            .font(.system(size: 60))
+                            .foregroundColor(.purple)
 
-                    Text(language == .portuguese ? "Escolha a Dificuldade" : "Choose Difficulty")
-                        .font(.title2)
-                        .bold()
+                        Text(language == .portuguese ? "Escolha a Dificuldade" : "Choose Difficulty")
+                            .font(.title2)
+                            .bold()
 
-                    Text(language == .portuguese ?
-                         "Selecione o nível de desafio" :
-                         "Select the challenge level")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
+                        Text(language == .portuguese ?
+                             "Selecione o nível de desafio" :
+                             "Select the challenge level")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
                     }
                     .padding(.top, 20)
 
-                // Difficulty Options (only for Clinical mode)
-                VStack(spacing: 16) {
-                    ForEach(DifficultyLevel.allCases, id: \.self) { difficulty in
-                        DifficultyOptionCard(
-                            difficulty: difficulty,
-                            language: language,
-                            isSelected: selectedDifficulty == difficulty,
-                            action: {
-                                selectedDifficulty = difficulty
-                            }
-                        )
+                    // Difficulty Options (only for Clinical mode)
+                    VStack(spacing: 16) {
+                        ForEach(DifficultyLevel.allCases, id: \.self) { difficulty in
+                            DifficultyOptionCard(
+                                difficulty: difficulty,
+                                language: language,
+                                isSelected: selectedDifficulty == difficulty,
+                                action: {
+                                    selectedDifficulty = difficulty
+                                }
+                            )
+                        }
                     }
-                }
-                .padding(.horizontal)
+                    .padding(.horizontal)
 
-                Spacer()
-
-                // Start Button
-                Button(action: {
-                    onStart()
-                }) {
-                    Text(language == .portuguese ? "Iniciar Sessão" : "Start Session")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.blue)
-                        .cornerRadius(12)
+                    // Start Button
+                    Button(action: {
+                        onStart()
+                    }) {
+                        Text(language == .portuguese ? "Iniciar Sessão" : "Start Session")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom, 20)
                 }
-                .padding(.horizontal)
-                .padding(.bottom, 20)
             }
             .navigationTitle(language == .portuguese ? "Escolha a Dificuldade" : "Choose Difficulty")
             .navigationBarTitleDisplayMode(.inline)
@@ -948,6 +984,7 @@ struct DifficultyPickerView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
     }
 }
 
@@ -1097,6 +1134,7 @@ struct PersonalityDetailsView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
     }
 }
 
@@ -1286,6 +1324,7 @@ struct PersonalityAdjustmentView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
     }
 
     private func applyChanges() {
@@ -1602,5 +1641,100 @@ extension View {
         } else {
             self.onChange(of: value, perform: action)
         }
+    }
+}
+
+// MARK: - Adaptive Layout Helpers (iPad full-screen + larger text)
+struct AdaptiveFontModifier: ViewModifier {
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    let phoneFont: Font
+    let padFont: Font
+    func body(content: Content) -> some View {
+        content.font(sizeClass == .regular ? padFont : phoneFont)
+    }
+}
+
+extension View {
+    func adaptiveCaption() -> some View { modifier(AdaptiveFontModifier(phoneFont: .caption, padFont: .footnote)) }
+    func adaptiveCaption2() -> some View { modifier(AdaptiveFontModifier(phoneFont: .caption2, padFont: .caption)) }
+    func adaptiveHeadline() -> some View { modifier(AdaptiveFontModifier(phoneFont: .headline, padFont: .title3)) }
+    func adaptiveSubheadline() -> some View { modifier(AdaptiveFontModifier(phoneFont: .subheadline, padFont: .callout)) }
+}
+
+struct AdaptivePaddingModifier: ViewModifier {
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    let edges: Edge.Set
+    let phoneLength: CGFloat?
+    func body(content: Content) -> some View {
+        let length = sizeClass == .regular ? (phoneLength ?? 16) * 1.5 : phoneLength
+        if let length { content.padding(edges, length) }
+        else { content.padding(edges) }
+    }
+}
+
+extension View {
+    func adaptivePadding(_ edges: Edge.Set = .all, _ phoneLength: CGFloat? = nil) -> some View {
+        modifier(AdaptivePaddingModifier(edges: edges, phoneLength: phoneLength))
+    }
+
+    /// Makes sheet presentations full-page on iPad instead of narrow popovers.
+    /// On iPhone (compact): behaves as `.presentationDetents([.large])`.
+    func adaptiveSheet() -> some View {
+        self.presentationDetents([.large])
+    }
+}
+
+/// A sheet that becomes a fullScreenCover on iPad (regular size class).
+/// On iPhone, behaves as a standard `.sheet` with `.presentationDetents([.large])`.
+/// On iPad, uses `.fullScreenCover` for full-width presentation.
+/// Sheet content views should include a "Done" / dismiss button for iPad.
+struct AdaptiveSheetModifier<SheetContent: View>: ViewModifier {
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Binding var isPresented: Bool
+    var onDismiss: (() -> Void)?
+    @ViewBuilder let sheetContent: () -> SheetContent
+
+    func body(content: Content) -> some View {
+        if sizeClass == .regular {
+            content.fullScreenCover(isPresented: $isPresented, onDismiss: onDismiss) {
+                sheetContent()
+            }
+        } else {
+            content.sheet(isPresented: $isPresented, onDismiss: onDismiss) {
+                sheetContent()
+                    .presentationDetents([.large])
+            }
+        }
+    }
+}
+
+// MARK: - Item-based adaptive sheet (passes data directly — fixes iPad fullScreenCover state bug)
+struct AdaptiveSheetItemModifier<Item: Identifiable, SheetContent: View>: ViewModifier {
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Binding var item: Item?
+    var onDismiss: (() -> Void)?
+    @ViewBuilder let sheetContent: (Item) -> SheetContent
+
+    func body(content: Content) -> some View {
+        if sizeClass == .regular {
+            content.fullScreenCover(item: $item, onDismiss: onDismiss) { value in
+                sheetContent(value)
+            }
+        } else {
+            content.sheet(item: $item, onDismiss: onDismiss) { value in
+                sheetContent(value)
+                    .presentationDetents([.large])
+            }
+        }
+    }
+}
+
+extension View {
+    func adaptiveFullSheet<Content: View>(isPresented: Binding<Bool>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: @escaping () -> Content) -> some View {
+        modifier(AdaptiveSheetModifier(isPresented: isPresented, onDismiss: onDismiss, sheetContent: content))
+    }
+
+    func adaptiveFullSheetItem<Item: Identifiable, Content: View>(item: Binding<Item?>, onDismiss: (() -> Void)? = nil, @ViewBuilder content: @escaping (Item) -> Content) -> some View {
+        modifier(AdaptiveSheetItemModifier(item: item, onDismiss: onDismiss, sheetContent: content))
     }
 }

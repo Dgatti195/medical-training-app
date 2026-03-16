@@ -72,6 +72,7 @@ struct NotificationSettingsView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
         .preferredColorScheme(themeManager.getColorScheme())
         .onAppear {
             checkNotificationPermission()

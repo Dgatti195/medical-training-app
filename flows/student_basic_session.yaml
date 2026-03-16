@@ -45,6 +45,10 @@ appId: DOL.Med-IA4-0-CLAUDE2
 - extendedWaitUntil:
     notVisible: "typing..."
     timeout: 30000
+# Dismiss connection error alert if it appears
+- tapOn:
+    text: "OK"
+    optional: true
 - takeScreenshot: "basic_02_name_response"
 
 # Q2: Age
@@ -56,6 +60,9 @@ appId: DOL.Med-IA4-0-CLAUDE2
 - extendedWaitUntil:
     notVisible: "typing..."
     timeout: 30000
+- tapOn:
+    text: "OK"
+    optional: true
 - takeScreenshot: "basic_03_age_response"
 
 # Q3: Chief complaint
@@ -67,6 +74,9 @@ appId: DOL.Med-IA4-0-CLAUDE2
 - extendedWaitUntil:
     notVisible: "typing..."
     timeout: 30000
+- tapOn:
+    text: "OK"
+    optional: true
 - takeScreenshot: "basic_04_complaint_response"
 
 # Q4: Duration
@@ -78,6 +88,9 @@ appId: DOL.Med-IA4-0-CLAUDE2
 - extendedWaitUntil:
     notVisible: "typing..."
     timeout: 30000
+- tapOn:
+    text: "OK"
+    optional: true
 - takeScreenshot: "basic_05_duration_response"
 
 # Q5: Medical history
@@ -89,6 +102,9 @@ appId: DOL.Med-IA4-0-CLAUDE2
 - extendedWaitUntil:
     notVisible: "typing..."
     timeout: 30000
+- tapOn:
+    text: "OK"
+    optional: true
 - takeScreenshot: "basic_06_history_response"
 
 # Q6: Medications
@@ -100,6 +116,9 @@ appId: DOL.Med-IA4-0-CLAUDE2
 - extendedWaitUntil:
     notVisible: "typing..."
     timeout: 30000
+- tapOn:
+    text: "OK"
+    optional: true
 - takeScreenshot: "basic_07_medications_response"
 
 # Q7: Family history
@@ -111,6 +130,9 @@ appId: DOL.Med-IA4-0-CLAUDE2
 - extendedWaitUntil:
     notVisible: "typing..."
     timeout: 30000
+- tapOn:
+    text: "OK"
+    optional: true
 - takeScreenshot: "basic_08_family_response"
 
 # Q8: Lifestyle
@@ -122,6 +144,9 @@ appId: DOL.Med-IA4-0-CLAUDE2
 - extendedWaitUntil:
     notVisible: "typing..."
     timeout: 30000
+- tapOn:
+    text: "OK"
+    optional: true
 - takeScreenshot: "basic_09_lifestyle_response"
 
 # Check checklist progress
@@ -130,9 +155,10 @@ appId: DOL.Med-IA4-0-CLAUDE2
 # --- FINISH SESSION ---
 - tapOn: "Finish"
 
+# Wait longer for the results sheet to load (can be slow on iPad)
 - extendedWaitUntil:
     visible: "Results"
-    timeout: 8000
+    timeout: 15000
 
 - takeScreenshot: "basic_11_results_overview"
 

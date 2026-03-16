@@ -123,6 +123,7 @@ struct ThemeSettingsView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
         .preferredColorScheme(themeManager.getColorScheme())
     }
 
@@ -232,10 +233,11 @@ struct AccessibilityFeatureRow: View {
 struct ColorPreviewGrid: View {
     @ObservedObject var themeManager: ThemeManager
     let language: AppLanguage
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
         VStack(spacing: 16) {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: horizontalSizeClass == .regular ? 8 : 4), spacing: 12) {
                 ColorSwatch(
                     color: themeManager.themedColors.primary,
                     label: language == .portuguese ? "Principal" : "Primary"

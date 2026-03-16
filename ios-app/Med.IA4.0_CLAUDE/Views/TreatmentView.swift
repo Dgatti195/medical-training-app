@@ -64,6 +64,7 @@ struct TreatmentPrescriptionEntryView: View {
             .navigationTitle(language == .portuguese ? "Tratamento" : "Treatment")
             .navigationBarTitleDisplayMode(.inline)
         }
+        .navigationViewStyle(.stack)
         .presentationDetents([.medium, .large])
     }
 }
@@ -222,5 +223,6 @@ struct TreatmentEvaluationView: View {
             .navigationTitle(language == .portuguese ? "Avaliação do Tratamento" : "Treatment Evaluation")
             .navigationBarTitleDisplayMode(.inline)
         }
+        .navigationViewStyle(.stack)
     }
 }

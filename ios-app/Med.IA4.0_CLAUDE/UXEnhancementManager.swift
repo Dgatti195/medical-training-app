@@ -198,6 +198,7 @@ struct SmartLoadingView: View {
     let message: String
     let estimatedTime: TimeInterval
     let language: AppLanguage
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var progress: Double = 0
     @State private var currentTip = 0
 
@@ -256,7 +257,7 @@ struct SmartLoadingView: View {
             // Progress bar
             ProgressView(value: progress)
                 .progressViewStyle(LinearProgressViewStyle(tint: .blue))
-                .frame(maxWidth: 200)
+                .frame(maxWidth: horizontalSizeClass == .regular ? 280 : 200)
         }
         .padding(32)
         .background(Color(.systemBackground))

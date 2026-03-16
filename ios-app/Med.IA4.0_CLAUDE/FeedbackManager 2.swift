@@ -222,15 +222,17 @@ class FeedbackManager: ObservableObject {
     }
     
     func submitFeedback(language: AppLanguage) {
-        // Guard: do not upload screenshots to a third-party service if the feedback service is not configured
-        guard !Self.airtableAPIKey.isEmpty else {
-            showErrorMessage(language: language, error: "Feedback service not configured")
-            return
-        }
-        if screenshot != nil {
-            uploadScreenshotThenSubmit(language: language)
-        } else {
-            submitToAirtable(language: language, screenshotURL: nil)
+        // Always save locally first
+        addToHistory(language: language, screenshotURL: nil)
+        showSuccessMessage(language: language, screenshotURL: nil)
+
+        // Optionally submit to Airtable if configured
+        if !Self.airtableAPIKey.isEmpty {
+            if screenshot != nil {
+                uploadScreenshotThenSubmit(language: language)
+            } else {
+                submitToAirtable(language: language, screenshotURL: nil)
+            }
         }
     }
     
@@ -411,6 +413,42 @@ class FeedbackManager: ObservableObject {
 
     func isDuplicateFeedback(_ text: String) -> Bool {
         return feedbackHistory.contains { $0.feedback.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == text.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) }
+    }
+
+    /// Generates a formatted text report of all feedback history for sharing.
+    func generateFeedbackReport() -> String {
+        guard !feedbackHistory.isEmpty else { return "No feedback recorded." }
+
+        var report = "Med.IA 4.0 — Feedback Report\n"
+        report += "Generated: \(DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .short))\n"
+        report += "Total entries: \(feedbackHistory.count)\n"
+        report += String(repeating: "─", count: 40) + "\n\n"
+
+        for (index, item) in feedbackHistory.enumerated() {
+            report += "[\(index + 1)] \(item.formattedDate) (\(item.language))\n"
+            report += item.feedback + "\n"
+            if item.screenshotURL != nil {
+                report += "(screenshot attached)\n"
+            }
+            report += "\n"
+        }
+        return report
+    }
+
+    /// Presents the system share sheet with the feedback report.
+    func exportFeedbackReport() {
+        let report = generateFeedbackReport()
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootVC = windowScene.windows.first?.rootViewController else { return }
+
+        let activityVC = UIActivityViewController(activityItems: [report], applicationActivities: nil)
+        // iPad popover anchor
+        if let popover = activityVC.popoverPresentationController {
+            popover.sourceView = rootVC.view
+            popover.sourceRect = CGRect(x: rootVC.view.bounds.midX, y: rootVC.view.bounds.midY, width: 0, height: 0)
+            popover.permittedArrowDirections = []
+        }
+        rootVC.present(activityVC, animated: true)
     }
 }
 
@@ -680,6 +718,19 @@ struct FeedbackHistoryView: View {
             .navigationTitle(language == .portuguese ? "Histórico de Feedback" : "Feedback History")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    if !feedbackManager.feedbackHistory.isEmpty {
+                        Button(action: {
+                            feedbackManager.exportFeedbackReport()
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "square.and.arrow.up")
+                                Text(language == .portuguese ? "Exportar" : "Export")
+                            }
+                            .font(.caption)
+                        }
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(language == .portuguese ? "Fechar" : "Done") {
                         dismiss()

@@ -104,6 +104,7 @@ struct APIKeySettingsView: View {
         .sheet(isPresented: $showingAPIKeySetup) {
             APIKeySetupView()
                 .environmentObject(UserProfileManager())
+                .presentationDetents([.large])
         }
         .alert("Remove API Key", isPresented: $showingDeleteAlert) {
             Button("Cancel", role: .cancel) { }

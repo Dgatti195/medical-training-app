@@ -530,7 +530,7 @@ class DatabaseManager: ObservableObject {
 
     func fetchLabResults(for diseaseId: Int) -> [LabResult] {
         guard let db = db else { return [] }
-        let querySQL = "SELECT id, disease_id, result_english, result_portuguese FROM lab_results WHERE disease_id = ?;"
+        let querySQL = "SELECT id, disease_id, result_english, result_portuguese FROM lab_results WHERE disease_id = ? AND result_english != '' AND result_english != 'N/A' AND result_portuguese != '' AND result_portuguese != 'N/A';"
         var statement: OpaquePointer?
         var results: [LabResult] = []
 

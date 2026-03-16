@@ -145,8 +145,9 @@ struct FirstTimeSetupView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
     }
-    
+
     private func saveProfileAndContinue() {
         userProfile.profile.userName = userName
         userProfile.profile.userGender = selectedGender

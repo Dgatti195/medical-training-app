@@ -146,8 +146,9 @@ struct FirstTimeSetupView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
     }
-    
+
     private func saveProfileAndContinue() {
         userProfile.profile.userName = userName
         userProfile.profile.userGender = selectedGender
@@ -254,6 +255,7 @@ struct APIKeyRequiredView: View {
         .sheet(isPresented: $showingSetup) {
             APIKeySetupView()
                 .environmentObject(userProfile)
+                .presentationDetents([.large])
         }
     }
 }

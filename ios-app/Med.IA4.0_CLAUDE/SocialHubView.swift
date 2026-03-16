@@ -116,6 +116,7 @@ struct SocialHubView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
     }
 }
 
@@ -123,6 +124,7 @@ struct SocialHubView: View {
 struct SocialProfileSetupView: View {
     @ObservedObject var socialManager: SocialFeaturesManager
     let language: AppLanguage
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @State private var nickname = ""
     @State private var selectedAvatar = "stethoscope"
@@ -167,7 +169,7 @@ struct SocialProfileSetupView: View {
                     Text(language == .portuguese ? "Escolha seu Avatar" : "Choose Your Avatar")
                         .font(.headline)
 
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 12) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: horizontalSizeClass == .regular ? 6 : 4), spacing: 12) {
                         ForEach(avatarOptions, id: \.self) { avatar in
                             Button(action: {
                                 selectedAvatar = avatar
